@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import { useAuth, useNotifications } from '@/hooks/useDatabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,51 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Bell, Key, Sparkles, Settings, CheckCircle, Clock, MessageSquare, FileText, X, AreaChart as MarkAsUnread } from 'lucide-react';
 
 export default function NotificationsPage() {
-  const notifications = {
-    signatures: [
-      {
-        id: 1,
-        title: 'Service Agreement needs your signature',
-        description: 'Marketing Agency has signed the service agreement. Your signature is required to complete the contract.',
-        time: '2 hours ago',
-        urgent: true,
-        contractName: 'Service Agreement - Marketing Agency'
-      },
-      {
-        id: 2,
-        title: 'Freelance Contract signed by Mike Designer',
-        description: 'The freelance web design contract has been fully executed by all parties.',
-        time: '1 day ago',
-        urgent: false,
-        contractName: 'Freelance Web Design Contract'
-      }
-    ],
-    aiReplies: [
-      {
-        id: 1,
-        title: 'Your legal question about employment law has been answered',
-        description: 'AI has provided a comprehensive response about notice periods in Kenyan employment law.',
-        time: '30 minutes ago',
-        question: 'What are the notice periods for employment termination in Kenya?'
-      }
-    ],
-    system: [
-      {
-        id: 1,
-        title: 'Monthly usage summary available',
-        description: 'Your January usage report is ready. You\'ve used 3 of 5 contracts this month.',
-        time: '3 hours ago',
-        type: 'usage'
-      },
-      {
-        id: 2,
-        title: 'New AI features available',
-        description: 'Enhanced contract analysis and improved legal research capabilities are now live.',
-        time: '2 days ago',
-        type: 'feature'
-      }
-    ]
-  };
+  const [activeTab, setActiveTab] = useState('all');
+  const { user } = useAuth();
+  const { notifications, loading, error } = useNotifications(user?.id, activeTab);
 
   const allNotifications = [
     ...notifications.signatures.map(n => ({ ...n, category: 'signature' })),

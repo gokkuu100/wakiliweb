@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,93 +12,24 @@ import {
   AlertCircle,
   TrendingUp,
   Users,
-  Calendar,
-  ArrowRight
+  Bell,
+  ArrowRight,
+  Plus
 } from 'lucide-react';
+import { useAuth, useDashboardStats } from '@/hooks/useDatabase';
 
 export default function DashboardPage() {
-  const [user] = useState({
-    name: 'John Doe',
-    plan: 'Individual Plan',
-    contractsThisMonth: 3,
-    contractsRemaining: 2
-  });
-
-  const recentContracts = [
-    {
-      id: 1,
-      title: 'Non-Disclosure Agreement',
-      status: 'signed',
-      date: '2024-01-15',
-      parties: ['John Doe', 'Tech Solutions Ltd']
-    },
-    {
-      id: 2,
-      title: 'Service Agreement',
-      status: 'pending_signature',
-      date: '2024-01-14',
-      parties: ['John Doe', 'Marketing Agency']
-    },
-    {
-      id: 3,
-      title: 'Employment Contract',
-      status: 'draft',
-      date: '2024-01-13',
-      parties: ['John Doe']
-    }
-  ];
-
-  const recentChats = [
-    {
-      id: 1,
-      title: 'Employment law in Kenya',
-      date: '2024-01-15',
-      preview: 'What are the notice periods for...'
-    },
-    {
-      id: 2,
-      title: 'Contract termination clauses',
-      date: '2024-01-14',
-      preview: 'How to properly terminate a...'
-    }
-  ];
-
-  const pendingActions = [
-    {
-      id: 1,
-      type: 'signature',
-      title: 'Service Agreement needs your signature',
-      date: '2024-01-14'
-    },
-    {
-      id: 2,
-      type: 'response',
-      title: 'AI response ready for your legal question',
-      date: '2024-01-15'
-    }
-  ];
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'signed':
-        return <Badge className="bg-green-100 text-green-800">Signed</Badge>;
-      case 'pending_signature':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending Signature</Badge>;
-      case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+  const { user } = useAuth()
+  const { stats, loading, error } = useDashboardStats(user?.id)
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">Welcome back, {user.name}!</h1>
+          <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.firstName}!</h1>
           <p className="text-blue-100 mb-4">
-            You're on the {user.plan}. You've used {user.contractsThisMonth} of 5 contracts this month.
+            You're on the Individual Plan.
           </p>
           <div className="flex flex-wrap gap-4">
             <Button className="bg-white text-blue-600 hover:bg-gray-100">
@@ -113,7 +43,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats Overview */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -121,48 +51,48 @@ export default function DashboardPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats?.totalContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
-                +3 from last month
+                All time
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
+              <CardTitle className="text-sm font-medium">Pending Signatures</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats?.pendingSignatures || 0}</div>
               <p className="text-xs text-muted-foreground">
-                Require your attention
+                Require action
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">AI Conversations</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Signed Contracts</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats?.signedContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
-                This month
+                Completed
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Contracts Remaining</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Notifications</CardTitle>
+              <Bell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{user.contractsRemaining}</div>
+              <div className="text-2xl font-bold">{loading ? '...' : stats?.unreadNotifications || 0}</div>
               <p className="text-xs text-muted-foreground">
-                This billing cycle
+                Unread messages
               </p>
             </CardContent>
           </Card>
@@ -173,34 +103,66 @@ export default function DashboardPage() {
           {/* Recent Contracts */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Recent Contracts</CardTitle>
-                  <CardDescription>Your latest contract activity</CardDescription>
-                </div>
-                <Button variant="outline" size="sm">
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
+              <CardTitle>Recent Contracts</CardTitle>
+              <CardDescription>Your latest contract activity</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {recentContracts.map((contract) => (
-                <div key={contract.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{contract.title}</h4>
-                    <p className="text-sm text-gray-600">
-                      {contract.parties.join(' • ')}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(contract.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="ml-4">
-                    {getStatusBadge(contract.status)}
-                  </div>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg animate-pulse">
+                      <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {stats?.recentContracts?.length > 0 ? (
+                    stats.recentContracts.map((contract: any) => (
+                      <div key={contract.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center space-x-4">
+                          <FileText className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <h4 className="font-semibold">{contract.title}</h4>
+                            <p className="text-sm text-gray-600">{contract.type}</p>
+                            <p className="text-xs text-gray-500">
+                              Parties: {contract.contract_parties?.map((p: any) => p.name).join(', ') || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge 
+                            className={
+                              contract.status === 'signed' 
+                                ? 'bg-green-100 text-green-800' 
+                                : contract.status === 'pending_signature'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }
+                          >
+                            {contract.status.replace('_', ' ')}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(contract.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No contracts yet. Create your first contract to get started!
+                    </div>
+                  )}
+                </div>
+              )}
+              <Button variant="outline" className="w-full mt-4">
+                <ArrowRight className="mr-2 h-4 w-4" />
+                View All Contracts
+              </Button>
             </CardContent>
           </Card>
 
@@ -214,19 +176,19 @@ export default function DashboardPage() {
               <CardDescription>Items that need your attention</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {pendingActions.map((action) => (
-                <div key={action.id} className="flex items-center justify-between p-3 border border-orange-200 rounded-lg bg-orange-50">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-orange-900">{action.title}</h4>
-                    <p className="text-sm text-orange-700">
-                      {new Date(action.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
-                    Take Action
-                  </Button>
-                </div>
-              ))}
+              {/*{pendingActions.map((action) => (*/}
+              {/*  <div key={action.id} className="flex items-center justify-between p-3 border border-orange-200 rounded-lg bg-orange-50">*/}
+              {/*    <div className="flex-1">*/}
+              {/*      <h4 className="font-medium text-orange-900">{action.title}</h4>*/}
+              {/*      <p className="text-sm text-orange-700">*/}
+              {/*        {new Date(action.date).toLocaleDateString()}*/}
+              {/*      </p>*/}
+              {/*    </div>*/}
+              {/*    <Button size="sm" className="bg-orange-600 hover:bg-orange-700">*/}
+              {/*      Take Action*/}
+              {/*    </Button>*/}
+              {/*  </div>*/}
+              {/*))}*/}
             </CardContent>
           </Card>
 
@@ -245,15 +207,15 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentChats.map((chat) => (
-                <div key={chat.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                  <h4 className="font-medium">{chat.title}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{chat.preview}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {new Date(chat.date).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
+              {/*{recentChats.map((chat) => (*/}
+              {/*  <div key={chat.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">*/}
+              {/*    <h4 className="font-medium">{chat.title}</h4>*/}
+              {/*    <p className="text-sm text-gray-600 mt-1">{chat.preview}</p>*/}
+              {/*    <p className="text-xs text-gray-500 mt-2">*/}
+              {/*      {new Date(chat.date).toLocaleDateString()}*/}
+              {/*    </p>*/}
+              {/*  </div>*/}
+              {/*))}*/}
             </CardContent>
           </Card>
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import { useAuth, useContracts } from '@/hooks/useDatabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,49 +24,9 @@ import {
 
 export default function ContractsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-
-  const contracts = [
-    {
-      id: 1,
-      title: 'Non-Disclosure Agreement',
-      type: 'NDA',
-      status: 'signed',
-      parties: ['John Doe', 'Tech Solutions Ltd'],
-      createdDate: '2024-01-15',
-      signedDate: '2024-01-16',
-      value: 'N/A'
-    },
-    {
-      id: 2,
-      title: 'Service Agreement',
-      type: 'Service Contract',
-      status: 'pending_signature',
-      parties: ['John Doe', 'Marketing Agency'],
-      createdDate: '2024-01-14',
-      signedDate: null,
-      value: 'KSh 150,000'
-    },
-    {
-      id: 3,
-      title: 'Employment Contract',
-      type: 'Employment',
-      status: 'draft',
-      parties: ['John Doe'],
-      createdDate: '2024-01-13',
-      signedDate: null,
-      value: 'KSh 80,000/month'
-    },
-    {
-      id: 4,
-      title: 'Rental Agreement',
-      type: 'Lease',
-      status: 'signed',
-      parties: ['John Doe', 'Property Owner'],
-      createdDate: '2024-01-10',
-      signedDate: '2024-01-12',
-      value: 'KSh 45,000/month'
-    }
-  ];
+  const [activeTab, setActiveTab] = useState('all');
+  const { user } = useAuth();
+  const { contracts, loading, error } = useContracts(user?.id, activeTab);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
