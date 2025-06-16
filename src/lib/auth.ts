@@ -61,24 +61,56 @@ export async function checkAuth(): Promise<{
   isAuthenticated: boolean; 
   user: AuthUser | null; 
   needsVerification: boolean;
+  emailVerified: boolean;
+  error?: string;
 }> {
   try {
+    // First check if we have a session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return { 
+        isAuthenticated: false, 
+        user: null, 
+        needsVerification: false,
+        emailVerified: false 
+      };
+    }
+    
+    // Check if email is verified (Supabase)
+    const emailVerified = session.user?.email_confirmed_at != null;
+    
+    // Then get the user profile data
     const user = await getCurrentUser();
     
     if (!user) {
-      return { isAuthenticated: false, user: null, needsVerification: false };
+      // We have a session but no user profile - could be right after signup
+      return { 
+        isAuthenticated: true, 
+        user: null, 
+        needsVerification: true,
+        emailVerified,
+        error: 'User profile not found. You may need to complete verification.'
+      };
     }
 
-    // Check if lawyer needs verification
+    // Check if lawyer needs additional verification (manual by admin)
     const needsVerification = user.user_type === 'lawyer' && !user.is_verified;
 
     return {
       isAuthenticated: true,
       user,
-      needsVerification
+      needsVerification,
+      emailVerified
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error checking auth:', error);
-    return { isAuthenticated: false, user: null, needsVerification: false };
+    return { 
+      isAuthenticated: false, 
+      user: null, 
+      needsVerification: false,
+      emailVerified: false,
+      error: error.message || 'Authentication error occurred'
+    };
   }
 }

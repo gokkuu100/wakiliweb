@@ -48,10 +48,17 @@ export default function LegalAILandingPage() {
               <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 transition-colors">How it Works</a>
               <a href="#pricing" className="text-gray-700 hover:text-blue-600 transition-colors">Pricing</a>
               <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors">Contact</a>
-              <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+              <Button 
+                variant="outline" 
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                onClick={() => window.location.href = '/auth/login'}
+              >
                 Sign In
               </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.location.href = '/auth/signup'}
+              >
                 Get Started
               </Button>
             </div>
@@ -82,7 +89,10 @@ export default function LegalAILandingPage() {
               <Button 
                 size="lg" 
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
-                onClick={() => setActiveUserType('users')}
+                onClick={() => {
+                  setActiveUserType('users');
+                  window.location.href = '/auth/signup';
+                }}
               >
                 <Users className="mr-2 h-5 w-5" />
                 For Individuals
@@ -92,7 +102,10 @@ export default function LegalAILandingPage() {
                 size="lg" 
                 variant="outline" 
                 className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg"
-                onClick={() => setActiveUserType('lawyers')}
+                onClick={() => {
+                  setActiveUserType('lawyers');
+                  window.location.href = '/auth/signup?type=lawyer';
+                }}
               >
                 <Briefcase className="mr-2 h-5 w-5" />
                 For Lawyers

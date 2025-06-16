@@ -26,34 +26,61 @@ export function AuthGuard({
   useEffect(() => {
     const validateAuth = async () => {
       try {
-        const { isAuthenticated, user, needsVerification } = await checkAuth();
+        const { isAuthenticated, user, needsVerification, emailVerified, error: authError } = await checkAuth();
 
+        // If there's an authentication error
+        if (authError) {
+          setError(authError);
+          setLoading(false);
+          return;
+        }
+        
+        // If email is not verified
+        if (isAuthenticated && !emailVerified) {
+          router.push('/auth/verification-pending');
+          return;
+        }
+
+        // If not authenticated, redirect to login
         if (!isAuthenticated) {
           router.push('/auth/login');
           return;
         }
 
+        // If authenticated but no user profile
         if (!user) {
-          setError('User data not found');
+          router.push('/auth/verification-pending');
+          return;
+        }
+
+        // Check verification status - all users must be verified to access restricted pages
+        if (!user.is_verified) {
+          router.push('/auth/verification-pending');
           return;
         }
 
         // Check user type requirements
         if (requiredUserType && user.user_type !== requiredUserType) {
-          router.push('/unauthorized');
+          if (user.user_type === 'lawyer') {
+            router.push('/lawyer');
+          } else if (user.user_type === 'admin') {
+            router.push('/admin');
+          } else {
+            router.push('/dashboard');
+          }
           return;
         }
 
-        // Check verification requirements
-        if (requireVerification && needsVerification) {
+        // Lawyers have additional verification requirements
+        if (user.user_type === 'lawyer' && requireVerification && needsVerification) {
           router.push('/auth/verification-pending');
           return;
         }
 
         setUser(user);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Auth validation error:', error);
-        setError('Authentication error occurred');
+        setError(error.message || 'Authentication error occurred');
       } finally {
         setLoading(false);
       }

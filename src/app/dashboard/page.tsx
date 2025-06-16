@@ -19,8 +19,8 @@ import {
 import { useAuth, useDashboardStats } from '@/hooks/useDatabase';
 
 export default function DashboardPage() {
-  const { user } = useAuth()
-  const { stats, loading, error } = useDashboardStats(user?.id)
+  const { user } = useAuth();
+  const { totalContracts, pendingContracts, signedContracts, recentActivity, isLoading, error } = useDashboardStats();
 
   return (
     <DashboardLayout>
@@ -51,7 +51,7 @@ export default function DashboardPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats?.totalContracts || 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : totalContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
                 All time
               </p>
@@ -64,7 +64,7 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats?.pendingSignatures || 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : pendingContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Require action
               </p>
@@ -77,7 +77,7 @@ export default function DashboardPage() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats?.signedContracts || 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : signedContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Completed
               </p>
@@ -90,7 +90,7 @@ export default function DashboardPage() {
               <Bell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? '...' : stats?.unreadNotifications || 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : 0}</div>
               <p className="text-xs text-muted-foreground">
                 Unread messages
               </p>
@@ -107,7 +107,7 @@ export default function DashboardPage() {
               <CardDescription>Your latest contract activity</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {isLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg animate-pulse">
@@ -121,33 +121,33 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {stats?.recentContracts?.length > 0 ? (
-                    stats.recentContracts.map((contract: any) => (
-                      <div key={contract.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  {recentActivity?.length > 0 ? (
+                    recentActivity.map((activity: any) => (
+                      <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
                           <FileText className="h-8 w-8 text-blue-600" />
                           <div>
-                            <h4 className="font-semibold">{contract.title}</h4>
-                            <p className="text-sm text-gray-600">{contract.type}</p>
+                            <h4 className="font-semibold">{activity.title || activity.name || "Activity"}</h4>
+                            <p className="text-sm text-gray-600">{activity.type || "Document"}</p>
                             <p className="text-xs text-gray-500">
-                              Parties: {contract.contract_parties?.map((p: any) => p.name).join(', ') || 'N/A'}
+                              {activity.description || "No additional details"}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <Badge 
                             className={
-                              contract.status === 'signed' 
+                              activity.status === 'signed' || activity.status === 'completed'
                                 ? 'bg-green-100 text-green-800' 
-                                : contract.status === 'pending_signature'
+                                : activity.status === 'pending_signature' || activity.status === 'pending'
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-gray-100 text-gray-800'
                             }
                           >
-                            {contract.status.replace('_', ' ')}
+                            {(activity.status || "active").replace('_', ' ')}
                           </Badge>
                           <p className="text-xs text-gray-500 mt-1">
-                            {new Date(contract.created_at).toLocaleDateString()}
+                            {activity.created_at ? new Date(activity.created_at).toLocaleDateString() : "Recent"}
                           </p>
                         </div>
                       </div>

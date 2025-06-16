@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -354,8 +354,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateProfile,
   };
 
-  // @ts-ignore - JSX in .ts file
-  return React.createElement(AuthContext.Provider, { value }, children);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Dashboard stats provider
@@ -427,8 +426,7 @@ export const DashboardStatsProvider = ({ children }: { children: React.ReactNode
     fetchStats();
   }, [user]);
 
-  // @ts-ignore - JSX in .ts file
-  return React.createElement(DashboardContext.Provider, { value: stats }, children);
+  return <DashboardContext.Provider value={stats}>{children}</DashboardContext.Provider>;
 };
 
 // Custom hooks to use the contexts

@@ -26,6 +26,7 @@ export default function LoginPage() {
     setError('');
 
     try {
+      // Sign in with Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -34,23 +35,69 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Get user profile to determine user type
+        // Check if email is verified in Supabase Auth
+        if (!data.user.email_confirmed_at) {
+          router.push('/auth/verification-pending');
+          return;
+        }
+        
+        // Get user profile to determine user type and verification status
         const { data: profile, error: profileError } = await supabase
           .from('users')
-          .select('user_type')
+          .select('user_type, is_verified')
           .eq('id', data.user.id)
           .single();
 
         if (profileError) throw profileError;
 
+        if (!profile) {
+          // User exists in auth but not in users table - update users table
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: data.user.email || '',
+              full_name: data.user.user_metadata.full_name || 'User',
+              user_type: data.user.user_metadata.user_type || 'citizen',
+              is_verified: true, // Email is already confirmed in auth
+            });
+            
+          if (insertError) {
+            throw new Error('Failed to create user profile. Please contact support.');
+          }
+          
+          // Reload the profile after creating it
+          const { data: newProfile } = await supabase
+            .from('users')
+            .select('user_type, is_verified')
+            .eq('id', data.user.id)
+            .single();
+            
+          if (newProfile) {
+            if (newProfile.user_type === 'lawyer' && !newProfile.is_verified) {
+              router.push('/auth/verification-pending');
+              return;
+            }
+          } else {
+            throw new Error('Failed to load user profile. Please try logging in again.');
+          }
+        } else if (profile.user_type === 'lawyer' && !profile.is_verified) {
+          // Check verification status for lawyers - lawyers need both email and manual verification
+          router.push('/auth/verification-pending');
+          return;
+        }
+
         // Navigate based on user type
         if (profile.user_type === 'lawyer') {
           router.push('/lawyer');
+        } else if (profile.user_type === 'admin') {
+          router.push('/admin');
         } else {
           router.push('/dashboard');
         }
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       setError(error.message || 'An error occurred during login');
     } finally {
       setLoading(false);
