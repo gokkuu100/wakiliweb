@@ -3,9 +3,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { checkAuth, AuthUser } from '@/lib/auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Scale, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/hooks/useDatabase';
+import { supabase } from '@/lib/supabase';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -16,54 +17,54 @@ interface AuthGuardProps {
 export function AuthGuard({ 
   children, 
   requiredUserType, 
-  requireVerification = false 
+  requireVerification = true 
 }: AuthGuardProps) {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  const { user, userProfile, isLoading, isAuthenticated, isVerified } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     const validateAuth = async () => {
       try {
-        const { isAuthenticated, user, needsVerification, emailVerified, error: authError } = await checkAuth();
-
-        // If there's an authentication error
-        if (authError) {
-          setError(authError);
-          setLoading(false);
+        // Wait for auth state to load
+        if (isLoading) {
+          setLoading(true);
+          return;
+        }
+        
+        setLoading(false);
+        
+        // If not authenticated, redirect to login
+        if (!isAuthenticated || !user) {
+          router.push('/auth/login');
           return;
         }
         
         // If email is not verified
-        if (isAuthenticated && !emailVerified) {
+        if (isAuthenticated && !user.email_confirmed_at) {
           router.push('/auth/verification-pending');
-          return;
-        }
-
-        // If not authenticated, redirect to login
-        if (!isAuthenticated) {
-          router.push('/auth/login');
           return;
         }
 
         // If authenticated but no user profile
-        if (!user) {
+        if (!userProfile) {
           router.push('/auth/verification-pending');
           return;
         }
 
-        // Check verification status - all users must be verified to access restricted pages
-        if (!user.is_verified) {
+        // Check verification status - all users must be verified if requireVerification is true
+        if (requireVerification && !isVerified) {
           router.push('/auth/verification-pending');
           return;
         }
-
-        // Check user type requirements
-        if (requiredUserType && user.user_type !== requiredUserType) {
-          if (user.user_type === 'lawyer') {
+        
+        // Check user type if required
+        if (requiredUserType && userProfile.user_type !== requiredUserType) {
+          if (userProfile.user_type === 'lawyer') {
             router.push('/lawyer');
-          } else if (user.user_type === 'admin') {
+          } else if (userProfile.user_type === 'admin') {
             router.push('/admin');
           } else {
             router.push('/dashboard');
@@ -72,12 +73,21 @@ export function AuthGuard({
         }
 
         // Lawyers have additional verification requirements
-        if (user.user_type === 'lawyer' && requireVerification && needsVerification) {
-          router.push('/auth/verification-pending');
-          return;
+        if (userProfile.user_type === 'lawyer' && requireVerification) {
+          // Check if lawyer profile is verified in addition to the basic user verification
+          const { data: lawyerProfile } = await supabase
+            .from('lawyer_profiles')
+            .select('is_verified')
+            .eq('user_id', user.id)
+            .single();
+            
+          if (lawyerProfile && !lawyerProfile.is_verified) {
+            router.push('/auth/verification-pending');
+            return;
+          }
         }
 
-        setUser(user);
+        // If we reach here, user is authenticated and verified
       } catch (error: any) {
         console.error('Auth validation error:', error);
         setError(error.message || 'Authentication error occurred');
@@ -87,7 +97,7 @@ export function AuthGuard({
     };
 
     validateAuth();
-  }, [router, requiredUserType, requireVerification]);
+  }, [router, requiredUserType, requireVerification, isLoading, isAuthenticated, isVerified, user, userProfile]);
 
   if (loading) {
     return (

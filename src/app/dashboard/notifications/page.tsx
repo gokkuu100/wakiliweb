@@ -12,7 +12,7 @@ import { Bell, Key, Sparkles, Settings, CheckCircle, Clock, MessageSquare, FileT
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const { user } = useAuth();
-  const { notifications, loading, error } = useNotifications(user?.id, activeTab);
+  const { notifications, loading, error } = useNotifications();
 
   const allNotifications = [
     ...notifications.signatures.map(n => ({ ...n, category: 'signature' })),

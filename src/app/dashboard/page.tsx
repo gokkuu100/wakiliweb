@@ -17,19 +17,39 @@ import {
   Plus
 } from 'lucide-react';
 import { useAuth, useDashboardStats } from '@/hooks/useDatabase';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const { totalContracts, pendingContracts, signedContracts, recentActivity, isLoading, error } = useDashboardStats();
+  const { user, userProfile } = useAuth();
+  const { 
+    totalContracts,
+    pendingSignatureContracts,
+    signedContracts,
+    draftContracts,
+    totalDocuments,
+    unreadNotifications,
+    recentContracts,
+    recentNotifications,
+    recentActivity,
+    isLoading, 
+    error,
+    subscriptionStatus,
+    // Access lawyer-specific stats if needed
+    totalCases,
+    activeCases,
+    clientCount
+  } = useDashboardStats();
 
   return (
-    <DashboardLayout>
+    <AuthGuard>
+      <DashboardLayout>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.user_metadata?.firstName}!</h1>
+          <h1 className="text-2xl font-bold mb-2">Welcome back, {userProfile && userProfile.full_name ? userProfile.full_name : (user?.user_metadata?.full_name || 'User')}!</h1>
           <p className="text-blue-100 mb-4">
-            You're on the Individual Plan.
+            You're on the {subscriptionStatus?.subscription_plans?.name || 'Free'} Plan.
+            {userProfile?.user_type === 'lawyer' && <span className="ml-2 font-semibold">• Lawyer Account</span>}
           </p>
           <div className="flex flex-wrap gap-4">
             <Button className="bg-white text-blue-600 hover:bg-gray-100">
@@ -64,7 +84,7 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? '...' : pendingContracts || 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : pendingSignatureContracts || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Require action
               </p>
@@ -90,9 +110,67 @@ export default function DashboardPage() {
               <Bell className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{isLoading ? '...' : 0}</div>
+              <div className="text-2xl font-bold">{isLoading ? '...' : unreadNotifications || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Unread messages
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Additional stats based on user type */}
+          {userProfile?.user_type === 'lawyer' && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{isLoading ? '...' : totalCases || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    All time
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Cases</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{isLoading ? '...' : activeCases || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    In progress
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{isLoading ? '...' : clientCount || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Unique clients
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          
+          {/* Show documents for all users */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Documents</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isLoading ? '...' : totalDocuments || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                In your vault
               </p>
             </CardContent>
           </Card>
@@ -121,33 +199,33 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {recentActivity?.length > 0 ? (
-                    recentActivity.map((activity: any) => (
-                      <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  {recentContracts?.length > 0 ? (
+                    recentContracts.map((contract: any) => (
+                      <div key={contract.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
                           <FileText className="h-8 w-8 text-blue-600" />
                           <div>
-                            <h4 className="font-semibold">{activity.title || activity.name || "Activity"}</h4>
-                            <p className="text-sm text-gray-600">{activity.type || "Document"}</p>
+                            <h4 className="font-semibold">{contract.title}</h4>
+                            <p className="text-sm text-gray-600">{contract.type || "Contract"}</p>
                             <p className="text-xs text-gray-500">
-                              {activity.description || "No additional details"}
+                              Parties: {contract.contract_parties?.map((p: any) => p.name).join(', ') || 'N/A'}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <Badge 
                             className={
-                              activity.status === 'signed' || activity.status === 'completed'
+                              contract.status === 'signed' 
                                 ? 'bg-green-100 text-green-800' 
-                                : activity.status === 'pending_signature' || activity.status === 'pending'
+                                : contract.status === 'pending_signature'
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-gray-100 text-gray-800'
                             }
                           >
-                            {(activity.status || "active").replace('_', ' ')}
+                            {contract.status.replace('_', ' ')}
                           </Badge>
                           <p className="text-xs text-gray-500 mt-1">
-                            {activity.created_at ? new Date(activity.created_at).toLocaleDateString() : "Recent"}
+                            {new Date(contract.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -260,5 +338,6 @@ export default function DashboardPage() {
         </Card>
       </div>
     </DashboardLayout>
+    </AuthGuard>
   );
 }
