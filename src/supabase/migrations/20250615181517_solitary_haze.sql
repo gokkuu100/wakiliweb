@@ -350,6 +350,9 @@ ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
 
+-- Users can insert their own profile (during signup)
+CREATE POLICY "Users can insert own profile" ON users FOR INSERT WITH CHECK (auth.uid() = id);
+
 -- Contracts: users can see contracts they created or are party to
 CREATE POLICY "Users can view their contracts" ON contracts FOR SELECT USING (
   created_by = auth.uid() OR 
@@ -417,3 +420,8 @@ CREATE POLICY "Lawyers can manage own cases" ON cases
 CREATE POLICY "Lawyers can manage case documents" ON case_documents FOR SELECT USING (
   case_id IN (SELECT id FROM cases WHERE lawyer_id = auth.uid())
 );
+
+-- Lawyer profiles: users can create their own lawyer profile
+CREATE POLICY "Users can create own lawyer profile" ON lawyer_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can view own lawyer profile" ON lawyer_profiles FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own lawyer profile" ON lawyer_profiles FOR UPDATE USING (auth.uid() = user_id);

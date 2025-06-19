@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
-import { AuthProvider } from "@/hooks/useDatabase";
+import { AuthProvider } from "@/hooks/useAuthContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ['latin'] });

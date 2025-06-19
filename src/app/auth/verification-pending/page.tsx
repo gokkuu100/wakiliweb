@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signOut } from '@/lib/auth';
+import { useAuth } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +12,8 @@ import { Scale, Clock, Mail, LogOut, Loader2, CheckCircle, AlertTriangle } from 
 
 export default function VerificationPendingPage() {
   const router = useRouter();
+  const { signOut, resendVerificationEmail, isLoading, error } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
-  const [resending, setResending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -159,37 +158,18 @@ export default function VerificationPendingPage() {
     }
   };
   
+  // Function to resend verification email
   const handleResendEmail = async () => {
-    setResending(true);
-    setEmailError('');
-    setEmailSent(false);
-    
     try {
-      // Show input dialog for email address (in a real app, you'd have a form field)
-      const email = prompt('Please enter your email address to resend the verification:');
+      setEmailError('');
       
-      if (!email) {
-        setResending(false);
-        return;
-      }
-      
-      const { data, error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/login`
-        }
-      });
-      
-      if (error) throw error;
+      await resendVerificationEmail();
       
       setEmailSent(true);
       setTimeout(() => setEmailSent(false), 5000);
     } catch (error: any) {
-      console.error('Error resending verification email:', error);
+      console.error('Error resending email:', error);
       setEmailError(error.message || 'Failed to resend verification email');
-    } finally {
-      setResending(false);
     }
   };
 
@@ -329,9 +309,9 @@ export default function VerificationPendingPage() {
                 onClick={handleResendEmail}
                 variant="default"
                 className="w-full h-12 bg-blue-600 hover:bg-blue-700"
-                disabled={resending}
+                disabled={isLoading}
               >
-                {resending ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sending Verification Email...

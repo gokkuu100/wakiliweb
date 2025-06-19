@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { useAuth, useContracts } from '@/hooks/useDatabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,14 +18,61 @@ import {
   MoreHorizontal,
   Plus,
   Calendar,
-  Users
+  Users,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { getUserContracts, searchContracts } from '@/lib/database/contracts';
 
 export default function ContractsPage() {
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
-  const { user } = useAuth();
-  const { contracts, loading, error } = useContracts(user?.id, activeTab);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Mock user ID - in real app, get from auth context
+  const userId = 'user-id-placeholder';
+
+  useEffect(() => {
+    async function loadContracts() {
+      try {
+        setLoading(true);
+        const userContracts = await getUserContracts(userId);
+        setContracts(userContracts);
+      } catch (err) {
+        console.error('Error loading contracts:', err);
+        setError('Failed to load contracts');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadContracts();
+  }, [userId]);
+
+  useEffect(() => {
+    async function performSearch() {
+      if (!searchTerm.trim()) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        setSearching(true);
+        const results = await searchContracts(userId, searchTerm);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Error searching contracts:', err);
+      } finally {
+        setSearching(false);
+      }
+    }
+
+    const debounceTimer = setTimeout(performSearch, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, userId]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -41,17 +87,47 @@ export default function ContractsPage() {
     }
   };
 
-  const filteredContracts = contracts.filter(contract =>
-    contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contract.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const displayContracts = searchTerm.trim() ? searchResults : contracts;
 
   const contractsByStatus = {
-    all: filteredContracts,
-    draft: filteredContracts.filter(c => c.status === 'draft'),
-    pending: filteredContracts.filter(c => c.status === 'pending_signature'),
-    signed: filteredContracts.filter(c => c.status === 'signed')
+    all: displayContracts,
+    draft: displayContracts.filter(c => c.status === 'draft'),
+    pending: displayContracts.filter(c => c.status === 'pending_signature'),
+    signed: displayContracts.filter(c => c.status === 'signed')
   };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading your contracts...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+            <p className="text-red-600">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -80,6 +156,9 @@ export default function ContractsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
+                {searching && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                )}
               </div>
               <Button variant="outline">
                 <Filter className="mr-2 h-4 w-4" />
@@ -114,18 +193,22 @@ export default function ContractsPage() {
                     <div className="text-center py-12">
                       <FileText className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-4 text-lg font-medium text-gray-900">
-                        No contracts found
+                        {searchTerm.trim() ? 'No contracts found' : 'No contracts found'}
                       </h3>
                       <p className="mt-2 text-gray-600">
-                        {status === 'all' 
-                          ? "You haven't created any contracts yet."
-                          : `No ${status} contracts found.`
+                        {searchTerm.trim() 
+                          ? `No contracts match "${searchTerm}"`
+                          : status === 'all' 
+                            ? "You haven't created any contracts yet."
+                            : `No ${status} contracts found.`
                         }
                       </p>
-                      <Button className="mt-4">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Your First Contract
-                      </Button>
+                      {!searchTerm.trim() && (
+                        <Button className="mt-4">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Your First Contract
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -147,32 +230,37 @@ export default function ContractsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                               <div>
                                 <p className="text-sm text-gray-500">Type</p>
-                                <p className="font-medium">{contract.type}</p>
+                                <p className="font-medium">{contract.contract_type}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-gray-500">Parties</p>
                                 <div className="flex items-center">
                                   <Users className="h-4 w-4 text-gray-400 mr-1" />
                                   <p className="font-medium text-sm">
-                                    {contract.parties.join(', ')}
+                                    {contract.parties?.map((p: any) => p.full_name).join(', ') || 'No parties'}
                                   </p>
                                 </div>
                               </div>
                               <div>
                                 <p className="text-sm text-gray-500">Value</p>
-                                <p className="font-medium">{contract.value}</p>
+                                <p className="font-medium">
+                                  {contract.value_amount 
+                                    ? `${contract.value_currency || 'KSh'} ${contract.value_amount.toLocaleString()}`
+                                    : 'N/A'
+                                  }
+                                </p>
                               </div>
                             </div>
 
                             <div className="flex items-center space-x-6 mt-4 text-sm text-gray-500">
                               <div className="flex items-center">
                                 <Calendar className="h-4 w-4 mr-1" />
-                                Created: {new Date(contract.createdDate).toLocaleDateString()}
+                                Created: {new Date(contract.created_at).toLocaleDateString()}
                               </div>
-                              {contract.signedDate && (
+                              {contract.signed_date && (
                                 <div className="flex items-center">
                                   <Calendar className="h-4 w-4 mr-1" />
-                                  Signed: {new Date(contract.signedDate).toLocaleDateString()}
+                                  Signed: {new Date(contract.signed_date).toLocaleDateString()}
                                 </div>
                               )}
                             </div>

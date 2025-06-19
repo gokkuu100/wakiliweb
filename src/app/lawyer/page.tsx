@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { LawyerDashboardLayout } from '@/components/lawyer/LawyerDashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,15 @@ import {
   Upload
 } from 'lucide-react';
 
-export default function LawyerDashboardPage() {
+export default function LawyerDashboardPageWithAuth() {
+  return (
+    <AuthGuard requiredUserType="lawyer" requireVerification={true}>
+      <LawyerDashboardPage />
+    </AuthGuard>
+  );
+}
+
+function LawyerDashboardPage() {
   const [lawyer] = useState({
     name: 'Sarah Mwangi',
     firm: 'Mwangi & Associates',

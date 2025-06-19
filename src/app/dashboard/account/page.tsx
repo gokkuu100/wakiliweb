@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,39 +20,89 @@ import {
   Shield,
   Bell,
   Eye,
-  Download
+  Download,
+  Loader2,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
+import { getUserProfile } from '@/lib/database/citizen-dashboard';
+import { getUserUsageStats, getPaymentHistory } from '@/lib/database/billing';
 
 export default function AccountPage() {
-  const userProfile = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+254 700 123 456',
-    location: 'Nairobi, Kenya',
-    joinDate: '2024-01-01',
-    plan: 'Individual Plan',
-    planPrice: 'KSh 2,500/month',
-    contractsUsed: 3,
-    contractsLimit: 5,
-    nextBilling: '2024-02-15'
-  };
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [usageStats, setUsageStats] = useState<any>(null);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const billingHistory = [
-    {
-      id: 1,
-      date: '2024-01-15',
-      amount: 'KSh 2,500',
-      status: 'paid',
-      description: 'Individual Plan - January 2024'
-    },
-    {
-      id: 2,
-      date: '2023-12-15',
-      amount: 'KSh 2,500',
-      status: 'paid',
-      description: 'Individual Plan - December 2023'
+  // Mock user ID - in real app, get from auth context
+  const userId = 'user-id-placeholder';
+
+  useEffect(() => {
+    async function loadAccountData() {
+      try {
+        setLoading(true);
+        const [profileData, statsData, historyData] = await Promise.all([
+          getUserProfile(userId),
+          getUserUsageStats(userId),
+          getPaymentHistory(userId)
+        ]);
+        setUserProfile(profileData);
+        setUsageStats(statsData);
+        setBillingHistory(historyData);
+      } catch (err) {
+        console.error('Error loading account data:', err);
+        setError('Failed to load account information');
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    loadAccountData();
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading your account...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+            <p className="text-red-600">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!userProfile || !usageStats) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <p className="text-gray-600">No account data available</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -74,9 +125,11 @@ export default function AccountPage() {
                 <p className="text-blue-700">{userProfile.email}</p>
                 <div className="flex items-center space-x-4 mt-2">
                   <Badge className="bg-blue-100 text-blue-800">{userProfile.plan}</Badge>
-                  <span className="text-sm text-blue-600">
-                    Member since {new Date(userProfile.joinDate).toLocaleDateString()}
-                  </span>
+                  {usageStats.isTrialing && (
+                    <Badge className="bg-yellow-100 text-yellow-800">
+                      Trial: {usageStats.daysRemainingInTrial} days left
+                    </Badge>
+                  )}
                 </div>
               </div>
               <Button className="bg-blue-600 hover:bg-blue-700">
@@ -91,8 +144,8 @@ export default function AccountPage() {
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="usage">Usage & Billing</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
 
@@ -114,11 +167,11 @@ export default function AccountPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                    <Input defaultValue={userProfile.phone} />
+                    <Input placeholder="Enter phone number" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <Input defaultValue={userProfile.location} />
+                    <Input placeholder="Enter location" />
                   </div>
                 </div>
                 <Button className="bg-blue-600 hover:bg-blue-700">
@@ -135,21 +188,172 @@ export default function AccountPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{userProfile.contractsUsed}</div>
+                    <div className="text-2xl font-bold text-blue-600">{usageStats.contractsUsed}</div>
                     <p className="text-sm text-gray-600">Contracts Created</p>
-                    <p className="text-xs text-gray-500">This month</p>
+                    <p className="text-xs text-gray-500">This billing cycle</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{userProfile.contractsLimit - userProfile.contractsUsed}</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {usageStats.contractsLimit ? usageStats.contractsLimit - usageStats.contractsUsed : '∞'}
+                    </div>
                     <p className="text-sm text-gray-600">Contracts Remaining</p>
                     <p className="text-xs text-gray-500">This billing cycle</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">8</div>
-                    <p className="text-sm text-gray-600">AI Conversations</p>
-                    <p className="text-xs text-gray-500">This month</p>
+                    <div className="text-2xl font-bold text-purple-600">{usageStats.aiQueriesUsed}</div>
+                    <p className="text-sm text-gray-600">AI Queries Used</p>
+                    <p className="text-xs text-gray-500">This billing cycle</p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="usage" className="space-y-6">
+            {/* Usage Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Current Plan & Usage
+                </CardTitle>
+                <CardDescription>Your subscription details and usage limits</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* Plan Info */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-semibold">{userProfile.plan}</h3>
+                      <p className="text-sm text-gray-600">
+                        {usageStats.isTrialing ? 'Free Trial' : 'Active Subscription'}
+                      </p>
+                      {usageStats.trialEndsAt && (
+                        <p className="text-xs text-gray-500">
+                          Trial ends: {new Date(usageStats.trialEndsAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-x-2">
+                      <Button variant="outline">Upgrade Plan</Button>
+                      {!usageStats.isTrialing && (
+                        <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+                          Cancel Plan
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Usage Bars */}
+                  <div className="space-y-4">
+                    {/* Contracts */}
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Contracts Used</span>
+                        <span>
+                          {usageStats.contractsUsed} / {usageStats.contractsLimit || '∞'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full" 
+                          style={{ 
+                            width: usageStats.contractsLimit 
+                              ? `${Math.min((usageStats.contractsUsed / usageStats.contractsLimit) * 100, 100)}%`
+                              : '0%'
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* AI Queries */}
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>AI Queries Used</span>
+                        <span>
+                          {usageStats.aiQueriesUsed} / {usageStats.aiQueriesLimit || '∞'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full" 
+                          style={{ 
+                            width: usageStats.aiQueriesLimit 
+                              ? `${Math.min((usageStats.aiQueriesUsed / usageStats.aiQueriesLimit) * 100, 100)}%`
+                              : '0%'
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    {/* Document Analysis */}
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Documents Analyzed</span>
+                        <span>
+                          {usageStats.documentsAnalyzedUsed} / {usageStats.documentsAnalyzedLimit || '∞'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-purple-600 h-2 rounded-full" 
+                          style={{ 
+                            width: usageStats.documentsAnalyzedLimit 
+                              ? `${Math.min((usageStats.documentsAnalyzedUsed / usageStats.documentsAnalyzedLimit) * 100, 100)}%`
+                              : '0%'
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Billing History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Billing History</CardTitle>
+                <CardDescription>View your past invoices and payments</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {billingHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {billingHistory.map((bill) => (
+                      <div key={bill.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{bill.description}</h4>
+                          <p className="text-sm text-gray-600">
+                            {new Date(bill.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="font-semibold">
+                            {bill.currency} {bill.amount.toLocaleString()}
+                          </span>
+                          <Badge className={
+                            bill.status === 'succeeded' 
+                              ? 'bg-green-100 text-green-800'
+                              : bill.status === 'failed'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }>
+                            {bill.status}
+                          </Badge>
+                          <Button variant="outline" size="sm">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CreditCard className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600">No billing history yet</p>
+                    <p className="text-sm text-gray-500">Your payment history will appear here</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -197,63 +401,6 @@ export default function AccountPage() {
                     <p className="text-sm text-gray-600">Receive verification codes via SMS</p>
                   </div>
                   <Button variant="outline">Enable</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="billing" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Current Plan
-                </CardTitle>
-                <CardDescription>Manage your subscription and billing</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">{userProfile.plan}</h3>
-                    <p className="text-sm text-gray-600">{userProfile.planPrice}</p>
-                    <p className="text-xs text-gray-500">
-                      Next billing: {new Date(userProfile.nextBilling).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="space-x-2">
-                    <Button variant="outline">Change Plan</Button>
-                    <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
-                      Cancel Plan
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Billing History</CardTitle>
-                <CardDescription>View your past invoices and payments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {billingHistory.map((bill) => (
-                    <div key={bill.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <h4 className="font-medium">{bill.description}</h4>
-                        <p className="text-sm text-gray-600">
-                          {new Date(bill.date).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="font-semibold">{bill.amount}</span>
-                        <Badge className="bg-green-100 text-green-800">Paid</Badge>
-                        <Button variant="outline" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </CardContent>
             </Card>

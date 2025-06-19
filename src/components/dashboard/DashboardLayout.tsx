@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { NotificationsProvider } from '@/hooks/useDatabase';
-import { Toaster } from '@/components/ui/toaster';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -14,24 +12,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <NotificationsProvider>
-      <div className="h-screen flex bg-gray-50">
-        {/* Sidebar - Fixed on the left */}
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-        
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header setSidebarOpen={setSidebarOpen} />
-          <main className="flex-1 overflow-y-auto">
-            <div className="py-2">
-              <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-1">
-                {children}
-              </div>
-            </div>
-          </main>
-        </div>
-        <Toaster />
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+      <div className="lg:pl-72">
+        <Header setSidebarOpen={setSidebarOpen} />
+        <main className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
+        </main>
       </div>
-    </NotificationsProvider>
+    </div>
   );
 }

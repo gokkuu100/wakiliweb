@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,91 +16,30 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const router = useRouter();
+  const { signIn, isLoading, error } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setLocalError('');
 
     try {
-      // Sign in with Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Check if email is verified in Supabase Auth
-        if (!data.user.email_confirmed_at) {
-          router.push('/auth/verification-pending');
-          return;
-        }
-        
-        // Get user profile to determine user type and verification status
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('user_type, is_verified')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) throw profileError;
-
-        if (!profile) {
-          // User exists in auth but not in users table - update users table
-          const { error: insertError } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              email: data.user.email || '',
-              full_name: data.user.user_metadata.full_name || 'User',
-              user_type: data.user.user_metadata.user_type || 'citizen',
-              is_verified: true, // Email is already confirmed in auth
-            });
-            
-          if (insertError) {
-            throw new Error('Failed to create user profile. Please contact support.');
-          }
-          
-          // Reload the profile after creating it
-          const { data: newProfile } = await supabase
-            .from('users')
-            .select('user_type, is_verified')
-            .eq('id', data.user.id)
-            .single();
-            
-          if (newProfile) {
-            if (newProfile.user_type === 'lawyer' && !newProfile.is_verified) {
-              router.push('/auth/verification-pending');
-              return;
-            }
-          } else {
-            throw new Error('Failed to load user profile. Please try logging in again.');
-          }
-        } else if (profile.user_type === 'lawyer' && !profile.is_verified) {
-          // Check verification status for lawyers - lawyers need both email and manual verification
-          router.push('/auth/verification-pending');
-          return;
-        }
-
-        // Navigate based on user type
-        if (profile.user_type === 'lawyer') {
-          router.push('/lawyer');
-        } else if (profile.user_type === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
-      }
+      await signIn(email, password);
+      // Redirect is handled in the signIn function
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.message || 'An error occurred during login');
-    } finally {
-      setLoading(false);
+      
+      // Provide more specific error messages
+      if (error.message.includes('Invalid login credentials')) {
+        setLocalError('Invalid email or password. Please check your credentials and try again.');
+      } else if (error.message.includes('Email not confirmed')) {
+        setLocalError('Please verify your email address before signing in.');
+      } else if (error.message.includes('User not found')) {
+        setLocalError('No account found with this email address.');
+      } else {
+        setLocalError(error.message || 'An error occurred during login. Please try again.');
+      }
     }
   };
 
@@ -128,10 +67,10 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {error && (
+              {(error || localError) && (
                 <Alert className="border-red-200 bg-red-50">
                   <AlertDescription className="text-red-800">
-                    {error}
+                    {localError || error}
                   </AlertDescription>
                 </Alert>
               )}
@@ -188,9 +127,9 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full h-12 bg-blue-600 hover:bg-blue-700"
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Signing in...

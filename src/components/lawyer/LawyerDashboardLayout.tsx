@@ -12,18 +12,13 @@ export function LawyerDashboardLayout({ children }: LawyerDashboardLayoutProps) 
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      {/* Sidebar - Fixed on the left */}
+    <div className="min-h-screen bg-gray-50">
       <LawyerSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="lg:pl-72">
         <LawyerHeader setSidebarOpen={setSidebarOpen} />
-        <main className="flex-1 overflow-y-auto">
-          <div className="py-2">
-            <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-1">
-              {children}
-            </div>
+        <main className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {children}
           </div>
         </main>
       </div>

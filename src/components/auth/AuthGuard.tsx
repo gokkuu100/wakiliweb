@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Scale, AlertTriangle } from 'lucide-react';
-import { useAuth } from '@/hooks/useDatabase';
+import { useAuth } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
 
 interface AuthGuardProps {
