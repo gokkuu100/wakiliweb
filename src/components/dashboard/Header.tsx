@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useUserData } from '@/hooks/useUserData';
 import { 
   Menu,
   Bell,
@@ -15,6 +16,8 @@ interface HeaderProps {
 }
 
 export function Header({ setSidebarOpen }: HeaderProps) {
+  const { profile, notifications, isLoading } = useUserData();
+
   return (
     <div className="sticky top-0 z-40 bg-white shadow-sm border-b">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -45,9 +48,11 @@ export function Header({ setSidebarOpen }: HeaderProps) {
           {/* Notifications */}
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-5 w-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0">
-              3
-            </Badge>
+            {!isLoading && notifications && notifications.unread > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0">
+                {notifications.unread > 99 ? '99+' : notifications.unread}
+              </Badge>
+            )}
           </Button>
 
           {/* Settings */}
@@ -60,7 +65,9 @@ export function Header({ setSidebarOpen }: HeaderProps) {
             <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
               <User className="h-4 w-4 text-blue-600" />
             </div>
-            <span className="hidden sm:block text-sm font-medium">John Doe</span>
+            <span className="hidden sm:block text-sm font-medium">
+              {isLoading ? 'Loading...' : profile?.name || 'User'}
+            </span>
           </Button>
         </div>
       </div>

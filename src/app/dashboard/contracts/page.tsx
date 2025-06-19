@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { 
   FileText, 
   Search, 
@@ -24,7 +26,8 @@ import {
 } from 'lucide-react';
 import { getUserContracts, searchContracts } from '@/lib/database/contracts';
 
-export default function ContractsPage() {
+function ContractsPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,14 +35,13 @@ export default function ContractsPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Mock user ID - in real app, get from auth context
-  const userId = 'user-id-placeholder';
-
   useEffect(() => {
     async function loadContracts() {
+      if (!user) return;
+      
       try {
         setLoading(true);
-        const userContracts = await getUserContracts(userId);
+        const userContracts = await getUserContracts(user.id);
         setContracts(userContracts);
       } catch (err) {
         console.error('Error loading contracts:', err);
@@ -49,19 +51,21 @@ export default function ContractsPage() {
       }
     }
 
-    loadContracts();
-  }, [userId]);
+    if (!authLoading && user) {
+      loadContracts();
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
     async function performSearch() {
-      if (!searchTerm.trim()) {
+      if (!user || !searchTerm.trim()) {
         setSearchResults([]);
         return;
       }
 
       try {
         setSearching(true);
-        const results = await searchContracts(userId, searchTerm);
+        const results = await searchContracts(user.id, searchTerm);
         setSearchResults(results);
       } catch (err) {
         console.error('Error searching contracts:', err);
@@ -72,7 +76,7 @@ export default function ContractsPage() {
 
     const debounceTimer = setTimeout(performSearch, 300);
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm, userId]);
+  }, [searchTerm, user]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -298,3 +302,13 @@ export default function ContractsPage() {
     </DashboardLayout>
   );
 }
+
+function ContractsPageWithAuth() {
+  return (
+    <AuthGuard>
+      <ContractsPage />
+    </AuthGuard>
+  );
+}
+
+export default ContractsPageWithAuth;

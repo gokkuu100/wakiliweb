@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useUserData } from '@/hooks/useUserData';
+import { useAuth } from '@/hooks/useAuthContext';
+import { getNotificationCountsByType } from '@/lib/database/notifications';
 import { 
   Home,
   FileText,
@@ -51,7 +54,7 @@ interface NavigationItem {
   children?: NavigationItem[];
 }
 
-const navigation: NavigationItem[] = [
+const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] => [
   {
     name: 'Dashboard',
     href: '/dashboard',
@@ -61,11 +64,11 @@ const navigation: NavigationItem[] = [
     name: 'My Contracts',
     href: '/dashboard/contracts',
     icon: FileText,
-    badge: '3',
+    badge: stats?.totalContracts?.toString() || '0',
     children: [
       { name: 'Create New Contract', href: '/dashboard/contracts/create', icon: Plus },
       { name: 'View All Contracts', href: '/dashboard/contracts', icon: Eye },
-      { name: 'Pending Signatures', href: '/dashboard/contracts/pending', icon: Clock, badge: '2' },
+      { name: 'Pending Signatures', href: '/dashboard/contracts/pending', icon: Clock, badge: notificationCounts?.signatures?.toString() || '0' },
       { name: 'Sent for Signing', href: '/dashboard/contracts/sent', icon: Send },
       { name: 'Signed Contracts', href: '/dashboard/contracts/signed', icon: CheckCircle },
       { name: 'Upload My Own Contract', href: '/dashboard/contracts/upload', icon: Upload },
@@ -92,6 +95,7 @@ const navigation: NavigationItem[] = [
     name: 'Legal Chat Assistant',
     href: '/dashboard/chat',
     icon: MessageSquare,
+    badge: stats?.aiConversations?.toString() || '0',
     children: [
       { name: 'Ask About Kenyan Law', href: '/dashboard/chat/ask', icon: MessageCircle },
       { name: 'Past Conversations', href: '/dashboard/chat/history', icon: History },
@@ -111,11 +115,11 @@ const navigation: NavigationItem[] = [
     name: 'Notifications',
     href: '/dashboard/notifications',
     icon: Bell,
-    badge: '5',
+    badge: stats?.notifications?.unread?.toString() || '0',
     children: [
-      { name: 'Pending Signatures', href: '/dashboard/notifications/signatures', icon: Key, badge: '2' },
-      { name: 'AI Replies', href: '/dashboard/notifications/ai-replies', icon: Sparkles, badge: '1' },
-      { name: 'System Updates', href: '/dashboard/notifications/system', icon: Settings, badge: '2' },
+      { name: 'Pending Signatures', href: '/dashboard/notifications/signatures', icon: Key, badge: notificationCounts?.signatures?.toString() || '0' },
+      { name: 'AI Replies', href: '/dashboard/notifications/ai-replies', icon: Sparkles, badge: notificationCounts?.aiReplies?.toString() || '0' },
+      { name: 'System Updates', href: '/dashboard/notifications/system', icon: Settings, badge: notificationCounts?.system?.toString() || '0' },
     ],
   },
   {
@@ -133,14 +137,43 @@ const navigation: NavigationItem[] = [
 
 export function Sidebar({ open, setOpen }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['My Contracts']);
+  const router = useRouter();
+  const { signOut, user } = useAuth();
+  const { profile, stats, notifications, isLoading } = useUserData();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [notificationCounts, setNotificationCounts] = useState<any>(null);
 
-  const toggleExpanded = (itemName: string) => {
+  useEffect(() => {
+    if (user) {
+      getNotificationCountsByType(user.id).then(setNotificationCounts);
+    }
+  }, [user, stats]);
+
+  const navigation = getNavigation({ ...stats, notifications }, notificationCounts);
+
+  const toggleExpanded = (itemName: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setExpandedItems(prev => 
       prev.includes(itemName) 
         ? prev.filter(name => name !== itemName)
         : [...prev, itemName]
     );
+  };
+
+  const handleParentClick = (item: NavigationItem) => {
+    // Navigate to parent route
+    router.push(item.href);
+    setOpen(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const isActive = (href: string) => {
@@ -199,16 +232,16 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
                 <li key={item.name}>
                   <div>
                     {item.children ? (
-                      <button
-                        onClick={() => toggleExpanded(item.name)}
-                        className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                          isParentActive(item)
-                            ? "bg-blue-50 text-blue-700"
-                            : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                        )}
-                      >
-                        <div className="flex items-center">
+                      <div className="relative">
+                        <button
+                          onClick={() => handleParentClick(item)}
+                          className={cn(
+                            "w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors pr-10",
+                            isParentActive(item)
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          )}
+                        >
                           <item.icon className="mr-3 h-5 w-5" />
                           {item.name}
                           {item.badge && (
@@ -216,13 +249,18 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
                               {item.badge}
                             </Badge>
                           )}
-                        </div>
-                        {expandedItems.includes(item.name) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </button>
+                        </button>
+                        <button
+                          onClick={(e) => toggleExpanded(item.name, e)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+                        >
+                          {expandedItems.includes(item.name) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     ) : (
                       <Link
                         href={item.href}
@@ -284,13 +322,18 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
                 <User className="h-4 w-4 text-blue-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">John Doe</p>
-                <p className="text-xs text-gray-500 truncate">Individual Plan</p>
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {isLoading ? 'Loading...' : profile?.name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {isLoading ? '...' : profile?.plan || 'No Plan'}
+                </p>
               </div>
             </div>
             <Button
               variant="ghost"
               className="w-full justify-start text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={handleLogout}
             >
               <LogOut className="mr-3 h-4 w-4" />
               Logout

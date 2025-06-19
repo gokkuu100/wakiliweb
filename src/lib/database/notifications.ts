@@ -318,3 +318,48 @@ export async function createTrialEndingNotification(
     throw error;
   }
 }
+
+// Get specific notification counts for dashboard sidebar
+export async function getNotificationCountsByType(userId: string): Promise<{
+  signatures: number;
+  aiReplies: number;
+  system: number;
+}> {
+  try {
+    const { data: notifications } = await supabase
+      .from('notifications')
+      .select('type, is_read')
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    const counts = {
+      signatures: 0,
+      aiReplies: 0,
+      system: 0
+    };
+
+    notifications?.forEach(notif => {
+      switch (notif.type) {
+        case 'signature_request':
+          counts.signatures++;
+          break;
+        case 'ai_response':
+        case 'ai_chat_response':
+          counts.aiReplies++;
+          break;
+        case 'system':
+        case 'trial_ending':
+        case 'subscription_expired':
+          counts.system++;
+          break;
+        default:
+          break;
+      }
+    });
+
+    return counts;
+  } catch (error) {
+    console.error('Error fetching notification counts by type:', error);
+    return { signatures: 0, aiReplies: 0, system: 0 };
+  }
+}

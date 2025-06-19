@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { 
   FolderOpen, 
   Search,
@@ -26,7 +28,8 @@ import {
   getDocumentUsageStats 
 } from '@/lib/database/documents';
 
-export default function VaultPage() {
+function VaultPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [documents, setDocuments] = useState<any[]>([]);
   const [usageStats, setUsageStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -35,16 +38,15 @@ export default function VaultPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Mock user ID - in real app, get from auth context
-  const userId = 'user-id-placeholder';
-
   useEffect(() => {
     async function loadVaultData() {
+      if (!user) return;
+      
       try {
         setLoading(true);
         const [documentsData, statsData] = await Promise.all([
-          getDocumentsWithAnalyses(userId),
-          getDocumentUsageStats(userId)
+          getDocumentsWithAnalyses(user.id),
+          getDocumentUsageStats(user.id)
         ]);
         setDocuments(documentsData);
         setUsageStats(statsData);
@@ -56,19 +58,21 @@ export default function VaultPage() {
       }
     }
 
-    loadVaultData();
-  }, [userId]);
+    if (!authLoading && user) {
+      loadVaultData();
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
     async function performSearch() {
-      if (!searchTerm.trim()) {
+      if (!user || !searchTerm.trim()) {
         setSearchResults([]);
         return;
       }
 
       try {
         setSearching(true);
-        const results = await searchDocuments(userId, searchTerm);
+        const results = await searchDocuments(user.id, searchTerm);
         setSearchResults(results);
       } catch (err) {
         console.error('Error searching documents:', err);
@@ -79,7 +83,7 @@ export default function VaultPage() {
 
     const debounceTimer = setTimeout(performSearch, 300);
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm, userId]);
+  }, [searchTerm, user]);
 
   const getRiskBadge = (level: string) => {
     switch (level) {
@@ -427,5 +431,13 @@ export default function VaultPage() {
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function VaultPageWithAuth() {
+  return (
+    <AuthGuard>
+      <VaultPage />
+    </AuthGuard>
   );
 }

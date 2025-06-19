@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { 
   MessageSquare, 
   Send,
@@ -26,7 +28,8 @@ import {
   getAIUsageStats
 } from '@/lib/database/ai-chat';
 
-export default function ChatPage() {
+function ChatPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [currentConversation, setCurrentConversation] = useState<any>(null);
@@ -36,16 +39,15 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock user ID - in real app, get from auth context
-  const userId = 'user-id-placeholder';
-
   useEffect(() => {
     async function loadChatData() {
+      if (!user) return;
+      
       try {
         setLoading(true);
         const [historyData, statsData] = await Promise.all([
-          getChatHistory(userId, 10),
-          getAIUsageStats(userId)
+          getChatHistory(user.id, 10),
+          getAIUsageStats(user.id)
         ]);
         setChatHistory(historyData);
         setUsageStats(statsData);
@@ -57,12 +59,16 @@ export default function ChatPage() {
       }
     }
 
-    loadChatData();
-  }, [userId]);
+    if (!authLoading && user) {
+      loadChatData();
+    }
+  }, [user, authLoading]);
 
   const loadConversation = async (conversationId: string) => {
+    if (!user) return;
+    
     try {
-      const conversationData = await getConversationWithMessages(userId, conversationId);
+      const conversationData = await getConversationWithMessages(user.id, conversationId);
       if (conversationData) {
         setCurrentConversation(conversationData.conversation);
         setMessages(conversationData.messages);
@@ -73,7 +79,7 @@ export default function ChatPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || sending) return;
+    if (!message.trim() || sending || !user) return;
 
     try {
       setSending(true);
@@ -82,12 +88,12 @@ export default function ChatPage() {
       
       // Create new conversation if none exists
       if (!conversationId) {
-        conversationId = await createConversation(userId, 'New Conversation', 'general');
+        conversationId = await createConversation(user.id, 'New Conversation', 'general');
         setCurrentConversation({ id: conversationId, title: 'New Conversation' });
       }
 
       // Add user message
-      const userMessageId = await addMessage(userId, conversationId, 'user', message);
+      const userMessageId = await addMessage(user.id, conversationId, 'user', message);
       
       // Update local messages
       const newUserMessage = {
@@ -105,7 +111,7 @@ export default function ChatPage() {
         try {
           const aiResponse = 'Thank you for your question about Kenyan law. Let me provide you with accurate information based on current legal statutes and regulations...';
           
-          const aiMessageId = await addMessage(userId, conversationId, 'assistant', aiResponse);
+          const aiMessageId = await addMessage(user.id, conversationId, 'assistant', aiResponse);
           
           const newAiMessage = {
             id: aiMessageId,
@@ -117,7 +123,7 @@ export default function ChatPage() {
           setMessages(prev => [...prev, newAiMessage]);
           
           // Refresh chat history
-          const updatedHistory = await getChatHistory(userId, 10);
+          const updatedHistory = await getChatHistory(user.id, 10);
           setChatHistory(updatedHistory);
         } catch (err) {
           console.error('Error adding AI response:', err);
@@ -395,5 +401,13 @@ export default function ChatPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function ChatPageWithAuth() {
+  return (
+    <AuthGuard>
+      <ChatPage />
+    </AuthGuard>
   );
 }
