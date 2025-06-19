@@ -37,6 +37,30 @@ function VaultPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [activeTab, setActiveTab] = useState('documents');
+
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1);
+      if (hash === 'documents' || hash === 'summaries') {
+        setActiveTab(hash);
+      }
+    };
+
+    // Set initial tab from hash
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL hash to match active tab
+    window.history.replaceState(null, '', `#${value}`);
+  };
 
   useEffect(() => {
     async function loadVaultData() {
@@ -242,7 +266,7 @@ function VaultPage() {
         </Card>
 
         {/* Main Content */}
-        <Tabs defaultValue="documents" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="documents">
               Uploaded Documents ({displayDocuments.length})

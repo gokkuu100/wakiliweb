@@ -67,7 +67,7 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     badge: stats?.totalContracts?.toString() || '0',
     children: [
       { name: 'Create New Contract', href: '/dashboard/contracts/create', icon: Plus },
-      { name: 'View All Contracts', href: '/dashboard/contracts', icon: Eye },
+      { name: 'View All Contracts', href: '/dashboard/contracts#all', icon: Eye },
       { name: 'Pending Signatures', href: '/dashboard/contracts/pending', icon: Clock, badge: notificationCounts?.signatures?.toString() || '0' },
       { name: 'Sent for Signing', href: '/dashboard/contracts/sent', icon: Send },
       { name: 'Signed Contracts', href: '/dashboard/contracts/signed', icon: CheckCircle },
@@ -79,7 +79,7 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     href: '/dashboard/contract-ai',
     icon: Bot,
     children: [
-      { name: 'Start Contract from Description', href: '/dashboard/contract-ai/create', icon: MessageCircle },
+      { name: 'Start Contract from Description', href: '/dashboard/contract-ai', icon: MessageCircle },
     ],
   },
   {
@@ -87,8 +87,8 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     href: '/dashboard/vault',
     icon: FolderOpen,
     children: [
-      { name: 'Uploaded Documents', href: '/dashboard/vault/documents', icon: Upload },
-      { name: 'Document Summaries', href: '/dashboard/vault/summaries', icon: Eye },
+      { name: 'Uploaded Documents', href: '/dashboard/vault#documents', icon: Upload },
+      { name: 'Document Summaries', href: '/dashboard/vault#summaries', icon: Eye },
     ],
   },
   {
@@ -97,9 +97,9 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     icon: MessageSquare,
     badge: stats?.aiConversations?.toString() || '0',
     children: [
-      { name: 'Ask About Kenyan Law', href: '/dashboard/chat/ask', icon: MessageCircle },
-      { name: 'Past Conversations', href: '/dashboard/chat/history', icon: History },
-      { name: 'Upload + Ask a Question', href: '/dashboard/chat/upload', icon: Paperclip },
+      { name: 'Ask About Kenyan Law', href: '/dashboard/chat#ask', icon: MessageCircle },
+      { name: 'Past Conversations', href: '/dashboard/chat#history', icon: History },
+      { name: 'Upload + Ask a Question', href: '/dashboard/chat#upload', icon: Paperclip },
     ],
   },
   {
@@ -117,9 +117,9 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     icon: Bell,
     badge: stats?.notifications?.unread?.toString() || '0',
     children: [
-      { name: 'Pending Signatures', href: '/dashboard/notifications/signatures', icon: Key, badge: notificationCounts?.signatures?.toString() || '0' },
-      { name: 'AI Replies', href: '/dashboard/notifications/ai-replies', icon: Sparkles, badge: notificationCounts?.aiReplies?.toString() || '0' },
-      { name: 'System Updates', href: '/dashboard/notifications/system', icon: Settings, badge: notificationCounts?.system?.toString() || '0' },
+      { name: 'Pending Signatures', href: '/dashboard/notifications#signature_request', icon: Key, badge: notificationCounts?.signatures?.toString() || '0' },
+      { name: 'AI Replies', href: '/dashboard/notifications#ai_response', icon: Sparkles, badge: notificationCounts?.aiReplies?.toString() || '0' },
+      { name: 'System Updates', href: '/dashboard/notifications#system', icon: Settings, badge: notificationCounts?.system?.toString() || '0' },
     ],
   },
   {
@@ -127,10 +127,10 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     href: '/dashboard/account',
     icon: User,
     children: [
-      { name: 'View Profile', href: '/dashboard/account/profile', icon: User },
-      { name: 'Edit Info', href: '/dashboard/account/edit', icon: Edit },
-      { name: 'Change Password', href: '/dashboard/account/password', icon: Lock },
-      { name: 'Billing & Plan', href: '/dashboard/account/billing', icon: CreditCard },
+      { name: 'View Profile', href: '/dashboard/account#profile', icon: User },
+      { name: 'Edit Info', href: '/dashboard/account#profile', icon: Edit },
+      { name: 'Change Password', href: '/dashboard/account#security', icon: Lock },
+      { name: 'Billing & Plan', href: '/dashboard/account#usage', icon: CreditCard },
     ],
   },
 ];

@@ -34,9 +34,36 @@ export default function AccountPage() {
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('profile');
 
   // Mock user ID - in real app, get from auth context
   const userId = 'user-id-placeholder';
+
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove the '#'
+      if (hash && ['profile', 'usage', 'security', 'preferences'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    // Set initial tab based on hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL hash to match active tab
+    window.history.replaceState(null, '', `#${value}`);
+  };
 
   useEffect(() => {
     async function loadAccountData() {
@@ -141,7 +168,7 @@ export default function AccountPage() {
         </Card>
 
         {/* Main Content */}
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="usage">Usage & Billing</TabsTrigger>

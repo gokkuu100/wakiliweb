@@ -39,6 +39,26 @@ function ChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+        const element = document.getElementById(hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    };
+
+    // Handle initial hash
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   useEffect(() => {
     async function loadChatData() {
       if (!user) return;
@@ -160,7 +180,7 @@ function ChatPage() {
     <DashboardLayout>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
         {/* Chat History Sidebar */}
-        <div className="lg:col-span-1">
+        <div id="history" className="lg:col-span-1">
           <Card className="h-full">
             <CardHeader>
               <CardTitle className="flex items-center text-lg">
@@ -215,7 +235,7 @@ function ChatPage() {
         </div>
 
         {/* Main Chat Area */}
-        <div className="lg:col-span-3">
+        <div id="ask" className="lg:col-span-3">
           <Card className="h-full flex flex-col">
             <CardHeader className="border-b">
               <div className="flex items-center justify-between">
@@ -367,7 +387,7 @@ function ChatPage() {
               </div>
               
               {/* Quick Actions */}
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div id="upload" className="flex flex-wrap gap-2 mt-3">
                 <Button
                   variant="outline"
                   size="sm"

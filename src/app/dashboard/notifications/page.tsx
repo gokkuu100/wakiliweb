@@ -47,6 +47,29 @@ function NotificationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
 
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1);
+      if (['all', 'unread', 'signature_request', 'ai_response', 'system', 'contract_update'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    // Set initial tab from hash
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL hash to match active tab
+    window.history.replaceState(null, '', `#${value}`);
+  };
+
   const loadNotifications = async () => {
     if (!user) return;
     
@@ -289,7 +312,7 @@ function NotificationsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="unread">Unread</TabsTrigger>

@@ -225,6 +225,78 @@ export async function getSignedContracts(userId: string): Promise<Contract[]> {
 // Get contract templates
 export async function getContractTemplates(): Promise<ContractTemplate[]> {
   try {
+    // For now, return mock templates until the contract_templates table is created
+    const mockTemplates: ContractTemplate[] = [
+      {
+        id: '1',
+        name: 'Non-Disclosure Agreement (NDA)',
+        category: 'Business',
+        description: 'Protect confidential information and trade secrets',
+        is_premium: false,
+        usage_count: 25
+      },
+      {
+        id: '2',
+        name: 'Service Agreement',
+        category: 'Business',
+        description: 'Define terms for professional services',
+        is_premium: false,
+        usage_count: 32
+      },
+      {
+        id: '3',
+        name: 'Employment Contract',
+        category: 'Employment',
+        description: 'Formal employment terms and conditions',
+        is_premium: true,
+        usage_count: 18
+      },
+      {
+        id: '4',
+        name: 'Rental Agreement',
+        category: 'Property',
+        description: 'Residential or commercial property lease',
+        is_premium: false,
+        usage_count: 45
+      },
+      {
+        id: '5',
+        name: 'Sale Agreement',
+        category: 'Property',
+        description: 'Buy or sell goods, property, or assets',
+        is_premium: true,
+        usage_count: 12
+      },
+      {
+        id: '6',
+        name: 'Freelance Contract',
+        category: 'Business',
+        description: 'Independent contractor agreements',
+        is_premium: false,
+        usage_count: 28
+      },
+      {
+        id: '7',
+        name: 'Partnership Agreement',
+        category: 'Business',
+        description: 'Define partnership terms and responsibilities',
+        is_premium: true,
+        usage_count: 8
+      },
+      {
+        id: '8',
+        name: 'Loan Agreement',
+        category: 'Financial',
+        description: 'Personal or business loan terms',
+        is_premium: true,
+        usage_count: 15
+      }
+    ];
+
+    return mockTemplates;
+
+    // TODO: When contract_templates table is created, use this code instead:
+    /*
     const { data: templates } = await supabase
       .from('contract_templates')
       .select('id, name, category, description, is_premium, usage_count')
@@ -232,6 +304,7 @@ export async function getContractTemplates(): Promise<ContractTemplate[]> {
       .order('usage_count', { ascending: false });
 
     return templates || [];
+    */
   } catch (error) {
     console.error('Error fetching contract templates:', error);
     throw error;

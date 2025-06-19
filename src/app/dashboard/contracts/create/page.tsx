@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,62 +18,95 @@ import {
   Briefcase,
   Heart,
   Car,
-  Laptop
+  Laptop,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { getContractTemplates } from '@/lib/database/contracts';
+import type { ContractTemplate } from '@/lib/database/contracts';
 
-export default function CreateContractPage() {
+function CreateContractPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ContractTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
 
-  const contractTemplates = [
-    {
-      id: 'nda',
-      title: 'Non-Disclosure Agreement (NDA)',
-      description: 'Protect confidential information and trade secrets',
-      icon: Shield,
-      category: 'Business',
-      popular: true
-    },
-    {
-      id: 'service',
-      title: 'Service Agreement',
-      description: 'Define terms for professional services',
-      icon: Briefcase,
-      category: 'Business',
-      popular: true
-    },
-    {
-      id: 'employment',
-      title: 'Employment Contract',
-      description: 'Formal employment terms and conditions',
-      icon: Users,
-      category: 'Employment',
-      popular: false
-    },
-    {
-      id: 'rental',
-      title: 'Rental Agreement',
-      description: 'Residential or commercial property lease',
-      icon: Home,
-      category: 'Property',
-      popular: true
-    },
-    {
-      id: 'sale',
-      title: 'Sale Agreement',
-      description: 'Buy or sell goods, property, or assets',
-      icon: Building,
-      category: 'Property',
-      popular: false
-    },
-    {
-      id: 'freelance',
-      title: 'Freelance Contract',
-      description: 'Independent contractor agreements',
-      icon: Laptop,
-      category: 'Business',
-      popular: false
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        setLoading(true);
+        const contractTemplates = await getContractTemplates();
+        setTemplates(contractTemplates);
+      } catch (err) {
+        console.error('Error loading contract templates:', err);
+        setError('Failed to load contract templates');
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    loadTemplates();
+  }, []);
+
+  const getTemplateIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'business':
+        return Briefcase;
+      case 'employment':
+        return Users;
+      case 'property':
+        return Building;
+      case 'residential':
+        return Home;
+      case 'legal':
+        return Shield;
+      case 'technology':
+        return Laptop;
+      case 'automotive':
+        return Car;
+      case 'personal':
+        return Heart;
+      default:
+        return FileText;
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading contract templates...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+            <p className="text-red-600">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -99,6 +132,8 @@ export default function CreateContractPage() {
             <Textarea
               placeholder="Example: I want to hire a freelancer to design my website and need to protect my business ideas..."
               className="min-h-[100px] bg-white border-blue-200"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
             />
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Sparkles className="mr-2 h-4 w-4" />
@@ -110,48 +145,75 @@ export default function CreateContractPage() {
         {/* Contract Templates */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Or choose from popular templates</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contractTemplates.map((template) => (
-              <Card 
-                key={template.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  selectedTemplate === template.id ? 'ring-2 ring-blue-500 border-blue-500' : ''
-                }`}
-                onClick={() => setSelectedTemplate(template.id)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <template.icon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{template.title}</CardTitle>
-                        <Badge variant="outline" className="mt-1">
-                          {template.category}
-                        </Badge>
-                      </div>
-                    </div>
-                    {template.popular && (
-                      <Badge className="bg-green-100 text-green-800">Popular</Badge>
-                    )}
-                  </div>
-                  <CardDescription className="mt-2">
-                    {template.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    className="w-full" 
-                    variant={selectedTemplate === template.id ? "default" : "outline"}
+          {templates.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">
+                    No templates available
+                  </h3>
+                  <p className="mt-2 text-gray-600">
+                    Contact support to get contract templates added to your account.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {templates.map((template) => {
+                const IconComponent = getTemplateIcon(template.category);
+                return (
+                  <Card 
+                    key={template.id}
+                    className={`cursor-pointer transition-all hover:shadow-lg ${
+                      selectedTemplate === template.id ? 'ring-2 ring-blue-500 border-blue-500' : ''
+                    }`}
+                    onClick={() => setSelectedTemplate(template.id)}
                   >
-                    {selectedTemplate === template.id ? "Selected" : "Use Template"}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <IconComponent className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-base">{template.name}</CardTitle>
+                            <Badge variant="outline" className="mt-1">
+                              {template.category}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end space-y-1">
+                          {template.is_premium && (
+                            <Badge className="bg-yellow-100 text-yellow-800">Premium</Badge>
+                          )}
+                          {template.usage_count > 10 && (
+                            <Badge className="bg-green-100 text-green-800">Popular</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <CardDescription className="mt-2">
+                        {template.description}
+                      </CardDescription>
+                      <div className="text-xs text-gray-500 mt-2">
+                        Used {template.usage_count} times
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <Button 
+                        className="w-full" 
+                        variant={selectedTemplate === template.id ? "default" : "outline"}
+                      >
+                        {selectedTemplate === template.id ? "Selected" : "Use Template"}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Next Steps */}
@@ -175,3 +237,13 @@ export default function CreateContractPage() {
     </DashboardLayout>
   );
 }
+
+function CreateContractPageWithAuth() {
+  return (
+    <AuthGuard>
+      <CreateContractPage />
+    </AuthGuard>
+  );
+}
+
+export default CreateContractPageWithAuth;

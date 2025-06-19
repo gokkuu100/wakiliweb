@@ -34,6 +34,30 @@ function ContractsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.substring(1);
+      if (['all', 'draft', 'pending', 'signed'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+
+    // Set initial tab from hash
+    handleHashChange();
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL hash to match active tab
+    window.history.replaceState(null, '', `#${value}`);
+  };
 
   useEffect(() => {
     async function loadContracts() {
@@ -173,7 +197,7 @@ function ContractsPage() {
         </Card>
 
         {/* Contracts Tabs */}
-        <Tabs defaultValue="all" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all">
               All ({contractsByStatus.all.length})
@@ -234,14 +258,14 @@ function ContractsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                               <div>
                                 <p className="text-sm text-gray-500">Type</p>
-                                <p className="font-medium">{contract.contract_type}</p>
+                                <p className="font-medium">{contract.type}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-gray-500">Parties</p>
                                 <div className="flex items-center">
                                   <Users className="h-4 w-4 text-gray-400 mr-1" />
                                   <p className="font-medium text-sm">
-                                    {contract.parties?.map((p: any) => p.full_name).join(', ') || 'No parties'}
+                                    {contract.parties?.map((p: any) => p.name).join(', ') || 'No parties'}
                                   </p>
                                 </div>
                               </div>

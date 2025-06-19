@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,39 +13,95 @@ import {
   Calendar,
   User,
   FileText,
-  TrendingUp
+  TrendingUp,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { getSignedContracts } from '@/lib/database/contracts';
+import type { Contract } from '@/lib/database/contracts';
 
-export default function SignedContractsPage() {
-  const signedContracts = [
-    {
-      id: 1,
-      title: 'Non-Disclosure Agreement',
-      parties: ['John Doe', 'Tech Solutions Ltd'],
-      signedDate: '2024-01-16',
-      value: 'N/A',
-      type: 'NDA',
-      validUntil: '2025-01-16'
-    },
-    {
-      id: 2,
-      title: 'Rental Agreement',
-      parties: ['John Doe', 'Property Owner'],
-      signedDate: '2024-01-12',
-      value: 'KSh 45,000/month',
-      type: 'Lease',
-      validUntil: '2025-01-12'
-    },
-    {
-      id: 3,
-      title: 'Consulting Agreement',
-      parties: ['John Doe', 'Business Consultant'],
-      signedDate: '2024-01-11',
-      value: 'KSh 200,000',
-      type: 'Service Contract',
-      validUntil: '2024-07-11'
+function SignedContractsPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadSignedContracts() {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const signedContracts = await getSignedContracts(user.id);
+        setContracts(signedContracts);
+      } catch (err) {
+        console.error('Error loading signed contracts:', err);
+        setError('Failed to load signed contracts');
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+
+    if (!authLoading && user) {
+      loadSignedContracts();
+    }
+  }, [user, authLoading]);
+
+  const thisMonthContracts = contracts.filter(contract => {
+    const contractDate = new Date(contract.signed_date || contract.created_at);
+    const now = new Date();
+    return contractDate.getMonth() === now.getMonth() && contractDate.getFullYear() === now.getFullYear();
+  });
+
+  const totalValue = contracts.reduce((sum, contract) => {
+    return sum + (contract.value_amount || 0);
+  }, 0);
+
+  const expiringContracts = contracts.filter(contract => {
+    if (!contract.signed_date) return false;
+    const signedDate = new Date(contract.signed_date);
+    const sixMonthsFromNow = new Date();
+    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+    // Assuming contracts expire 1 year after signing
+    const expiryDate = new Date(signedDate);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    return expiryDate <= sixMonthsFromNow;
+  });
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading signed contracts...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+            <p className="text-red-600">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -63,7 +120,7 @@ export default function SignedContractsPage() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
+              <div className="text-2xl font-bold">{contracts.length}</div>
               <p className="text-xs text-muted-foreground">
                 Active contracts
               </p>
@@ -76,7 +133,7 @@ export default function SignedContractsPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{thisMonthContracts.length}</div>
               <p className="text-xs text-muted-foreground">
                 Recently signed
               </p>
@@ -89,7 +146,9 @@ export default function SignedContractsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">KSh 245K</div>
+              <div className="text-2xl font-bold">
+                KSH {totalValue.toLocaleString()}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Contract value
               </p>
@@ -102,7 +161,7 @@ export default function SignedContractsPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
+              <div className="text-2xl font-bold">{expiringContracts.length}</div>
               <p className="text-xs text-muted-foreground">
                 Within 6 months
               </p>
@@ -112,72 +171,87 @@ export default function SignedContractsPage() {
 
         {/* Signed Contracts */}
         <div className="space-y-4">
-          {signedContracts.map((contract) => (
-            <Card key={contract.id} className="hover:shadow-md transition-shadow border-green-200">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {contract.title}
-                      </h3>
-                      <Badge className="bg-green-100 text-green-800">Signed</Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Type</p>
-                        <p className="font-medium">{contract.type}</p>
+          {contracts.map((contract) => {
+            const primaryParty = contract.parties?.[0];
+            const expiryDate = contract.signed_date ? 
+              new Date(new Date(contract.signed_date).setFullYear(new Date(contract.signed_date).getFullYear() + 1)) : 
+              null;
+
+            return (
+              <Card key={contract.id} className="hover:shadow-md transition-shadow border-green-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {contract.title}
+                        </h3>
+                        <Badge className="bg-green-100 text-green-800">Signed</Badge>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Parties</p>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 text-gray-400 mr-1" />
-                          <p className="font-medium text-sm">
-                            {contract.parties.join(', ')}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Type</p>
+                          <p className="font-medium">{contract.type}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Parties</p>
+                          <div className="flex items-center">
+                            <User className="h-4 w-4 text-gray-400 mr-1" />
+                            <p className="font-medium text-sm">
+                              {contract.parties?.map(p => p.name).join(', ') || 'No parties'}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Value</p>
+                          <p className="font-medium">
+                            {contract.value_amount 
+                              ? `${contract.value_currency || 'KSH'} ${contract.value_amount.toLocaleString()}`
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Valid Until</p>
+                          <p className="font-medium">
+                            {expiryDate ? expiryDate.toLocaleDateString() : 'Indefinite'}
                           </p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Value</p>
-                        <p className="font-medium">{contract.value}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Valid Until</p>
-                        <p className="font-medium">
-                          {new Date(contract.validUntil).toLocaleDateString()}
-                        </p>
+
+                      <div className="flex items-center space-x-6 mt-4 text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          Signed: {contract.signed_date ? 
+                            new Date(contract.signed_date).toLocaleDateString() : 
+                            'Date not available'
+                          }
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-6 mt-4 text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Signed: {new Date(contract.signedDate).toLocaleDateString()}
-                      </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Share className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex items-center space-x-2 ml-4">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Share className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Empty State */}
-        {signedContracts.length === 0 && (
+        {contracts.length === 0 && (
           <Card>
             <CardContent className="pt-6">
               <div className="text-center py-12">
@@ -196,3 +270,13 @@ export default function SignedContractsPage() {
     </DashboardLayout>
   );
 }
+
+function SignedContractsPageWithAuth() {
+  return (
+    <AuthGuard>
+      <SignedContractsPage />
+    </AuthGuard>
+  );
+}
+
+export default SignedContractsPageWithAuth;
