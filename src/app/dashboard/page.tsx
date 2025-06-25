@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AuthGuard } from '@/components/auth/AuthGuard';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +23,7 @@ import {
   getPendingActions, 
   getUserProfile 
 } from '@/lib/database/citizen-dashboard';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuthContext';
 
 interface DashboardData {
@@ -90,69 +89,66 @@ function DashboardPage() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-            <p className="text-gray-600">Loading your dashboard...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading your dashboard...</p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-            <p className="text-red-600">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="mt-4"
-              variant="outline"
-            >
-              Try Again
-            </Button>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
+          <p className="text-red-600">{error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="mt-4"
+            variant="outline"
+          >
+            Try Again
+          </Button>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   if (!dashboardData) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-12">
-          <p className="text-gray-600">No data available</p>
-        </div>
-      </DashboardLayout>
+      <div className="text-center py-12">
+        <p className="text-gray-600">No data available</p>
+      </div>
     );
   }
 
   const { stats, recentContracts, recentChats, pendingActions, userProfile } = dashboardData;
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
-          <h1 className="text-2xl font-bold mb-2">Welcome back, {userProfile?.name || authProfile?.full_name}!</h1>
-          <p className="text-blue-100 mb-4">
-            You're on the {userProfile?.plan}. You've used {userProfile?.contractsUsed} of {(userProfile?.contractsRemaining || 0) + (userProfile?.contractsUsed || 0)} contracts this month.
-          </p>
-          <div className="flex flex-wrap gap-4">
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
+        <h1 className="text-2xl font-bold mb-2">Welcome back, {userProfile?.name || authProfile?.full_name}!</h1>
+        <p className="text-blue-100 mb-4">
+          You're on the {userProfile?.plan}. You've used {userProfile?.contractsUsed} of {(userProfile?.contractsRemaining || 0) + (userProfile?.contractsUsed || 0)} contracts this month.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/dashboard/contracts/create">
             <Button className="bg-white text-blue-600 hover:bg-gray-100">
               <FileText className="mr-2 h-4 w-4" />
               Create New Contract
             </Button>
+          </Link>
+          <Link href="/dashboard/chat#ask">
             <Button variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
               <MessageSquare className="mr-2 h-4 w-4" />
               Ask Legal Question
             </Button>
-          </div>
+          </Link>
         </div>
+      </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -394,17 +390,7 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }
 
-// Wrap the component with AuthGuard
-function DashboardPageWithAuth() {
-  return (
-    <AuthGuard requiredUserType="citizen" requireVerification={true}>
-      <DashboardPage />
-    </AuthGuard>
-  );
-}
-
-export default DashboardPageWithAuth;
+export default DashboardPage;

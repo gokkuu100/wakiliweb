@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,7 +45,7 @@ export default function ContractAIPage() {
   };
 
   return (
-    <DashboardLayout>
+    
       <div className="space-y-6">
         {/* Header */}
         <div className="text-center">
@@ -196,6 +195,5 @@ export default function ContractAIPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }

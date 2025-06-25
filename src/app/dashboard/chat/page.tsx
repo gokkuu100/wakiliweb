@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuthContext';
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { 
   MessageSquare, 
   Send,
@@ -18,26 +18,53 @@ import {
   History,
   Sparkles,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  File,
+  Upload,
+  FileText,
+  Brain,
+  Scale,
+  CheckCircle
 } from 'lucide-react';
-import { 
-  getChatHistory, 
-  getConversationWithMessages, 
-  createConversation, 
-  addMessage,
-  getAIUsageStats
-} from '@/lib/database/ai-chat';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  sources?: any[];
+  confidence_score?: number;
+  legal_citations?: string[];
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  updated_at: string;
+  total_tokens_used: number;
+}
 
 function ChatPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [message, setMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [usageStats, setUsageStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [legalArea, setLegalArea] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Handle hash navigation
   useEffect(() => {
@@ -51,10 +78,7 @@ function ChatPage() {
       }
     };
 
-    // Handle initial hash
     handleHashChange();
-    
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
@@ -65,15 +89,23 @@ function ChatPage() {
       
       try {
         setLoading(true);
-        const [historyData, statsData] = await Promise.all([
-          getChatHistory(user.id, 10),
-          getAIUsageStats(user.id)
+        const [historyResponse, usageResponse] = await Promise.all([
+          fetch('/api/ai/chat'),
+          fetch('/api/ai/usage?type=overview')
         ]);
-        setChatHistory(historyData);
-        setUsageStats(statsData);
+        
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setChatHistory(historyData);
+        }
+        
+        if (usageResponse.ok) {
+          const usageData = await usageResponse.json();
+          setUsageStats(usageData);
+        }
       } catch (err) {
         console.error('Error loading chat data:', err);
-        setError('Failed to load chat history');
+        setError('Failed to load chat data');
       } finally {
         setLoading(false);
       }
@@ -88,10 +120,11 @@ function ChatPage() {
     if (!user) return;
     
     try {
-      const conversationData = await getConversationWithMessages(user.id, conversationId);
-      if (conversationData) {
-        setCurrentConversation(conversationData.conversation);
-        setMessages(conversationData.messages);
+      const response = await fetch(`/api/ai/chat?conversationId=${conversationId}`);
+      if (response.ok) {
+        const conversationData = await response.json();
+        setCurrentConversation(conversationData);
+        setMessages(conversationData.chat_messages || []);
       }
     } catch (err) {
       console.error('Error loading conversation:', err);
@@ -101,58 +134,65 @@ function ChatPage() {
   const handleSendMessage = async () => {
     if (!message.trim() || sending || !user) return;
 
+    setSending(true);
+    setError(null);
+
     try {
-      setSending(true);
-      
-      let conversationId = currentConversation?.id;
-      
-      // Create new conversation if none exists
-      if (!conversationId) {
-        conversationId = await createConversation(user.id, 'New Conversation', 'general');
-        setCurrentConversation({ id: conversationId, title: 'New Conversation' });
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message.trim(),
+          conversationId: currentConversation?.id,
+          legalArea,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
       }
 
-      // Add user message
-      const userMessageId = await addMessage(user.id, conversationId, 'user', message);
-      
-      // Update local messages
-      const newUserMessage = {
-        id: userMessageId,
+      const result = await response.json();
+
+      // Add user message to UI
+      const userMessage: Message = {
+        id: `temp-${Date.now()}`,
         role: 'user',
-        content: message,
-        created_at: new Date().toISOString()
+        content: message.trim(),
+        timestamp: new Date().toISOString(),
       };
-      
-      setMessages(prev => [...prev, newUserMessage]);
+
+      // Add AI response to UI
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: 'assistant',
+        content: result.message,
+        timestamp: new Date().toISOString(),
+        sources: result.sources_used || [],
+        confidence_score: result.confidence_score,
+        legal_citations: result.legal_citations || [],
+      };
+
+      setMessages(prev => [...prev, userMessage, aiMessage]);
       setMessage('');
 
-      // Simulate AI response (in real app, this would call your AI service)
-      setTimeout(async () => {
-        try {
-          const aiResponse = 'Thank you for your question about Kenyan law. Let me provide you with accurate information based on current legal statutes and regulations...';
-          
-          const aiMessageId = await addMessage(user.id, conversationId, 'assistant', aiResponse);
-          
-          const newAiMessage = {
-            id: aiMessageId,
-            role: 'assistant',
-            content: aiResponse,
-            created_at: new Date().toISOString()
-          };
-          
-          setMessages(prev => [...prev, newAiMessage]);
-          
-          // Refresh chat history
-          const updatedHistory = await getChatHistory(user.id, 10);
-          setChatHistory(updatedHistory);
-        } catch (err) {
-          console.error('Error adding AI response:', err);
+      // Update conversation if new
+      if (!currentConversation && result.conversation_id) {
+        setCurrentConversation({ id: result.conversation_id });
+        
+        // Refresh chat history
+        const historyResponse = await fetch('/api/ai/chat');
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setChatHistory(historyData);
         }
-      }, 1000);
+      }
 
     } catch (err) {
       console.error('Error sending message:', err);
-      setError('Failed to send message');
+      setError('Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
@@ -165,20 +205,17 @@ function ChatPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-            <p className="text-gray-600">Loading chat history...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading chat history...</p>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
         {/* Chat History Sidebar */}
         <div id="history" className="lg:col-span-1">
           <Card className="h-full">
@@ -204,13 +241,12 @@ function ChatPage() {
                     onClick={() => loadConversation(chat.id)}
                   >
                     <h4 className="font-medium text-sm">{chat.title}</h4>
-                    <p className="text-xs text-gray-600 mt-1">{chat.preview}</p>
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-gray-500">
-                        {new Date(chat.date).toLocaleDateString()}
+                        {new Date(chat.updated_at).toLocaleDateString()}
                       </p>
                       <Badge variant="outline" className="text-xs">
-                        {chat.message_count} msgs
+                        {chat.total_tokens_used} tokens
                       </Badge>
                     </div>
                   </div>
@@ -319,7 +355,7 @@ function ChatPage() {
                         <p className={`text-xs mt-2 ${
                           chat.role === 'user' ? 'text-blue-100' : 'text-gray-500'
                         }`}>
-                          {new Date(chat.created_at).toLocaleTimeString()}
+                          {new Date(chat.timestamp).toLocaleTimeString()}
                         </p>
                       </div>
                     </div>
@@ -420,14 +456,7 @@ function ChatPage() {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
   );
 }
 
-export default function ChatPageWithAuth() {
-  return (
-    <AuthGuard>
-      <ChatPage />
-    </AuthGuard>
-  );
-}
+export default ChatPage;

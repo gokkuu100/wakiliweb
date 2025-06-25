@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AuthGuard } from '@/components/auth/AuthGuard';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -213,32 +211,32 @@ function NotificationsPage() {
 
   if (authLoading || loading) {
     return (
-      <DashboardLayout>
+      
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
             <p className="text-gray-600">Loading notifications...</p>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
+      
         <div className="text-center py-12">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Notifications</h3>
           <p className="text-gray-600 mb-4">{error}</p>
           <Button onClick={loadNotifications}>Try Again</Button>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout>
+    
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -373,14 +371,7 @@ function NotificationsPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 }
 
-export default function NotificationsPageWithAuth() {
-  return (
-    <AuthGuard>
-      <NotificationsPage />
-    </AuthGuard>
-  );
-}
+export default NotificationsPage;

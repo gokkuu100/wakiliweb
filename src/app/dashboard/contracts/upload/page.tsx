@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +18,6 @@ import {
   Calendar
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuthContext';
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { uploadDocument, getDocumentsWithAnalyses } from '@/lib/database/documents';
 import type { DocumentWithAnalysis } from '@/lib/database/documents';
 
@@ -164,7 +162,7 @@ function UploadContractPage() {
   };
 
   return (
-    <DashboardLayout>
+    
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -400,16 +398,7 @@ function UploadContractPage() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
   );
 }
 
-function UploadContractPageWithAuth() {
-  return (
-    <AuthGuard>
-      <UploadContractPage />
-    </AuthGuard>
-  );
-}
-
-export default UploadContractPageWithAuth;
+export default UploadContractPage;

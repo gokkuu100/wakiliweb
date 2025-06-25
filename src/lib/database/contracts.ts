@@ -225,90 +225,112 @@ export async function getSignedContracts(userId: string): Promise<Contract[]> {
 // Get contract templates
 export async function getContractTemplates(): Promise<ContractTemplate[]> {
   try {
-    // For now, return mock templates until the contract_templates table is created
-    const mockTemplates: ContractTemplate[] = [
-      {
-        id: '1',
-        name: 'Non-Disclosure Agreement (NDA)',
-        category: 'Business',
-        description: 'Protect confidential information and trade secrets',
-        is_premium: false,
-        usage_count: 25
-      },
-      {
-        id: '2',
-        name: 'Service Agreement',
-        category: 'Business',
-        description: 'Define terms for professional services',
-        is_premium: false,
-        usage_count: 32
-      },
-      {
-        id: '3',
-        name: 'Employment Contract',
-        category: 'Employment',
-        description: 'Formal employment terms and conditions',
-        is_premium: true,
-        usage_count: 18
-      },
-      {
-        id: '4',
-        name: 'Rental Agreement',
-        category: 'Property',
-        description: 'Residential or commercial property lease',
-        is_premium: false,
-        usage_count: 45
-      },
-      {
-        id: '5',
-        name: 'Sale Agreement',
-        category: 'Property',
-        description: 'Buy or sell goods, property, or assets',
-        is_premium: true,
-        usage_count: 12
-      },
-      {
-        id: '6',
-        name: 'Freelance Contract',
-        category: 'Business',
-        description: 'Independent contractor agreements',
-        is_premium: false,
-        usage_count: 28
-      },
-      {
-        id: '7',
-        name: 'Partnership Agreement',
-        category: 'Business',
-        description: 'Define partnership terms and responsibilities',
-        is_premium: true,
-        usage_count: 8
-      },
-      {
-        id: '8',
-        name: 'Loan Agreement',
-        category: 'Financial',
-        description: 'Personal or business loan terms',
-        is_premium: true,
-        usage_count: 15
-      }
-    ];
-
-    return mockTemplates;
-
-    // TODO: When contract_templates table is created, use this code instead:
-    /*
-    const { data: templates } = await supabase
+    // Fetch from the new contract_templates table
+    const { data: templates, error } = await supabase
       .from('contract_templates')
-      .select('id, name, category, description, is_premium, usage_count')
+      .select(`
+        id,
+        name,
+        description,
+        template_type,
+        pricing_tier,
+        is_ai_powered,
+        estimated_completion_time,
+        usage_count,
+        category:contract_categories(name)
+      `)
       .eq('is_active', true)
       .order('usage_count', { ascending: false });
 
-    return templates || [];
-    */
+    if (error) {
+      console.error('Error fetching templates:', error);
+      // Return mock data as fallback
+      return getMockTemplates();
+    }
+
+    return templates?.map(template => ({
+      id: template.id,
+      name: template.name,
+      category: template.name,
+      description: template.description,
+      is_premium: template.pricing_tier !== 'free',
+      usage_count: template.usage_count || 0
+    })) || [];
+
   } catch (error) {
     console.error('Error fetching contract templates:', error);
-    throw error;
+    // Return mock data as fallback
+    return getMockTemplates();
   }
+}
+
+function getMockTemplates(): ContractTemplate[] {
+  return [
+    {
+      id: '1',
+      name: 'Non-Disclosure Agreement (NDA)',
+      category: 'Business',
+      description: 'Protect confidential information and trade secrets',
+      is_premium: false,
+      usage_count: 25
+    },
+    {
+      id: '2',
+      name: 'Service Agreement',
+      category: 'Business',
+      description: 'Define terms for professional services',
+      is_premium: false,
+      usage_count: 32
+    },
+    {
+      id: '3',
+      name: 'Employment Contract',
+      category: 'Employment',
+      description: 'Formal employment terms and conditions',
+      is_premium: true,
+      usage_count: 18
+    },
+    {
+      id: '4',
+      name: 'Rental Agreement',
+      category: 'Property',
+      description: 'Residential or commercial property lease',
+      is_premium: false,
+      usage_count: 45
+    },
+    {
+      id: '5',
+      name: 'Sale Agreement',
+      category: 'Property',
+      description: 'Buy or sell goods, property, or assets',
+      is_premium: true,
+      usage_count: 12
+    },
+    {
+      id: '6',
+      name: 'Freelance Contract',
+      category: 'Business',
+      description: 'Independent contractor agreements',
+      is_premium: false,
+      usage_count: 28
+    },
+    {
+      id: '7',
+      name: 'Partnership Agreement',
+      category: 'Business',
+      description: 'Define partnership terms and responsibilities',
+      is_premium: true,
+      usage_count: 8
+    },
+    {
+      id: '8',
+      name: 'Loan Agreement',
+      category: 'Financial',
+      description: 'Personal or business loan terms',
+      is_premium: true,
+      usage_count: 15
+    }
+  ];
 }
 
 // Create a new contract

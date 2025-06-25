@@ -1,467 +1,320 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuthContext';
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { 
-  FolderOpen, 
-  Search,
   Upload,
   FileText,
   Eye,
   Download,
-  Sparkles,
-  Calendar,
-  Filter,
-  Loader2,
-  AlertCircle
+  Brain,
+  Scale,
+  CheckCircle,
+  AlertCircle,
+  File,
+  Trash2,
+  Loader2
 } from 'lucide-react';
-import { 
-  getDocumentsWithAnalyses, 
-  searchDocuments, 
-  getDocumentUsageStats 
-} from '@/lib/database/documents';
 
-function VaultPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [usageStats, setUsageStats] = useState<any>(null);
+interface UploadedDocument {
+  id: string;
+  title: string;
+  file_size: number;
+  file_type: string;
+  upload_status: string;
+  created_at: string;
+  document_analysis?: {
+    id: string;
+    analysis_type: string;
+    summary: string;
+    confidence_score: number;
+    created_at: string;
+  }[];
+}
+
+export default function VaultPage() {
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [activeTab, setActiveTab] = useState('documents');
+  const [selectedAnalysisType, setSelectedAnalysisType] = useState('summary');
 
-  // Handle hash navigation
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.substring(1);
-      if (hash === 'documents' || hash === 'summaries') {
-        setActiveTab(hash);
+  const loadDocuments = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch('/api/ai/documents');
+      if (response.ok) {
+        const docs = await response.json();
+        setDocuments(docs);
+      } else {
+        throw new Error('Failed to load documents');
       }
-    };
-
-    // Set initial tab from hash
-    handleHashChange();
-    
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    // Update URL hash to match active tab
-    window.history.replaceState(null, '', `#${value}`);
+    } catch (err) {
+      console.error('Error loading documents:', err);
+      setError('Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    async function loadVaultData() {
-      if (!user) return;
-      
-      try {
-        setLoading(true);
-        const [documentsData, statsData] = await Promise.all([
-          getDocumentsWithAnalyses(user.id),
-          getDocumentUsageStats(user.id)
-        ]);
-        setDocuments(documentsData);
-        setUsageStats(statsData);
-      } catch (err) {
-        console.error('Error loading vault data:', err);
-        setError('Failed to load documents');
-      } finally {
-        setLoading(false);
+    if (user) {
+      loadDocuments();
+    }
+  }, [user]);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!user || acceptedFiles.length === 0) return;
+
+    setUploading(true);
+    setError(null);
+    setUploadProgress(0);
+
+    try {
+      for (const file of acceptedFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('analysisType', selectedAnalysisType);
+
+        const response = await fetch('/api/ai/documents', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${file.name}`);
+        }
+
+        setUploadProgress(prev => prev + (100 / acceptedFiles.length));
       }
+
+      await loadDocuments();
+
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('Failed to upload one or more files. Please try again.');
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
     }
+  }, [user, selectedAnalysisType]);
 
-    if (!authLoading && user) {
-      loadVaultData();
-    }
-  }, [user, authLoading]);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+    },
+    multiple: true,
+  });
 
-  useEffect(() => {
-    async function performSearch() {
-      if (!user || !searchTerm.trim()) {
-        setSearchResults([]);
-        return;
-      }
-
-      try {
-        setSearching(true);
-        const results = await searchDocuments(user.id, searchTerm);
-        setSearchResults(results);
-      } catch (err) {
-        console.error('Error searching documents:', err);
-      } finally {
-        setSearching(false);
-      }
-    }
-
-    const debounceTimer = setTimeout(performSearch, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm, user]);
-
-  const getRiskBadge = (level: string) => {
-    switch (level) {
-      case 'low':
-        return <Badge className="bg-green-100 text-green-800">Low Risk</Badge>;
-      case 'medium':
-        return <Badge className="bg-yellow-100 text-yellow-800">Medium Risk</Badge>;
-      case 'high':
-        return <Badge className="bg-red-100 text-red-800">High Risk</Badge>;
-      default:
-        return <Badge>{level}</Badge>;
-    }
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'analyzed':
-        return <Badge className="bg-green-100 text-green-800">Analyzed</Badge>;
-      case 'processing':
-        return <Badge className="bg-blue-100 text-blue-800">Processing</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
-      case 'uploaded':
-        return <Badge className="bg-gray-100 text-gray-800">Uploaded</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
+  const getFileIcon = (fileType: string) => {
+    if (fileType.includes('pdf')) return FileText;
+    if (fileType.includes('word') || fileType.includes('document')) return File;
+    return File;
   };
 
-  const displayDocuments = searchTerm.trim() ? searchResults : documents;
-  const analyzedDocuments = displayDocuments.filter(doc => doc.analyses && doc.analyses.length > 0);
+  const getAnalysisIcon = (analysisType: string) => {
+    switch (analysisType) {
+      case 'legal_review': return Scale;
+      case 'risk_assessment': return AlertCircle;
+      case 'compliance_check': return CheckCircle;
+      default: return Brain;
+    }
+  };
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-            <p className="text-gray-600">Loading your documents...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading documents...</p>
         </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
-            <p className="text-red-600">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="mt-4"
-              variant="outline"
-            >
-              Try Again
-            </Button>
-          </div>
-        </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Legal Document Vault</h1>
+        <p className="text-gray-600 mt-2">
+          Upload and analyze legal documents with AI-powered insights
+        </p>
+      </div>
+
+      {/* Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Upload className="mr-2 h-5 w-5" />
+            Upload Documents
+          </CardTitle>
+          <CardDescription>
+            Upload legal documents for AI analysis and storage
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Analysis Type Selection */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Legal Vault</h1>
-            <p className="text-gray-600">Secure storage and AI analysis for all your legal documents</p>
-          </div>
-          <Button className="mt-4 sm:mt-0">
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Document
-          </Button>
-        </div>
-
-        {/* Usage Stats */}
-        {usageStats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Documents Uploaded</CardTitle>
-                <Upload className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{usageStats.documentsUploaded}</div>
-                <p className="text-xs text-muted-foreground">Total uploads</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Documents Analyzed</CardTitle>
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{usageStats.documentsAnalyzed}</div>
-                <p className="text-xs text-muted-foreground">AI processed</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Analyses Used</CardTitle>
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{usageStats.analysesUsed}</div>
-                <p className="text-xs text-muted-foreground">
-                  {usageStats.analysesLimit ? `of ${usageStats.analysesLimit}` : 'unlimited'}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
-                <FolderOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {Math.round(documents.reduce((sum, doc) => sum + (doc.file_size || 0), 0) / 1024 / 1024)}MB
-                </div>
-                <p className="text-xs text-muted-foreground">Total storage</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search documents by name, type, or content..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                )}
-              </div>
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" />
-                Filter
-              </Button>
+            <label className="block text-sm font-medium mb-2">Analysis Type</label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'summary', label: 'Document Summary', icon: Eye },
+                { value: 'legal_review', label: 'Legal Review', icon: Scale },
+                { value: 'compliance_check', label: 'Compliance Check', icon: CheckCircle },
+                { value: 'risk_assessment', label: 'Risk Assessment', icon: AlertCircle },
+              ].map((type) => {
+                const IconComponent = type.icon;
+                return (
+                  <Button
+                    key={type.value}
+                    variant={selectedAnalysisType === type.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedAnalysisType(type.value)}
+                  >
+                    <IconComponent className="h-4 w-4 mr-1" />
+                    {type.label}
+                  </Button>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="documents">
-              Uploaded Documents ({displayDocuments.length})
-            </TabsTrigger>
-            <TabsTrigger value="summaries">
-              Document Summaries ({analyzedDocuments.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="documents" className="space-y-4">
-            {displayDocuments.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-12">
-                    <FolderOpen className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      {searchTerm.trim() ? 'No documents found' : 'No documents uploaded yet'}
-                    </h3>
-                    <p className="mt-2 text-gray-600">
-                      {searchTerm.trim() 
-                        ? `No documents match "${searchTerm}"`
-                        : 'Upload your first legal document to get started with AI analysis.'
-                      }
-                    </p>
-                    {!searchTerm.trim() && (
-                      <Button className="mt-4">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Your First Document
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Dropzone */}
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+              isDragActive
+                ? 'border-blue-400 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <input {...getInputProps()} />
+            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            {isDragActive ? (
+              <p className="text-blue-600">Drop the documents here...</p>
             ) : (
-              displayDocuments.map((doc) => (
-                <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {doc.original_filename}
-                          </h3>
-                          <Badge variant="outline">{doc.document_type || 'Document'}</Badge>
-                          {getStatusBadge(doc.status)}
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                          <div>
-                            <p className="text-sm text-gray-500">Upload Date</p>
-                            <div className="flex items-center">
-                              <Calendar className="h-4 w-4 text-gray-400 mr-1" />
-                              <p className="font-medium text-sm">
-                                {new Date(doc.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">File Size</p>
-                            <p className="font-medium">
-                              {Math.round(doc.file_size / 1024)} KB
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Type</p>
-                            <p className="font-medium">{doc.mime_type}</p>
-                          </div>
-                        </div>
+              <div>
+                <p className="text-gray-600 mb-2">
+                  Drag & drop documents here, or click to select files
+                </p>
+                <p className="text-sm text-gray-500">
+                  Supports PDF, DOC, DOCX, and TXT files
+                </p>
+              </div>
+            )}
+          </div>
 
-                        {doc.analyses && doc.analyses.length > 0 && (
-                          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm text-blue-900 font-medium mb-1">AI Analysis Available:</p>
-                            <p className="text-sm text-blue-800">
-                              {doc.analyses[0].summary || 'Analysis completed successfully'}
-                            </p>
-                          </div>
-                        )}
+          {uploading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Uploading...</span>
+                <span className="text-sm text-gray-600">{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="w-full" />
+            </div>
+          )}
+
+          {error && (
+            <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Documents List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Documents ({documents.length})</CardTitle>
+          <CardDescription>
+            Manage your uploaded documents and their AI analysis results
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {documents.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No documents uploaded yet</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Upload your first document to get started
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {documents.map((doc) => {
+                const FileIcon = getFileIcon(doc.file_type);
+                return (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <FileIcon className="h-5 w-5 text-blue-600" />
                       </div>
-
-                      <div className="flex items-center space-x-2 ml-4">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        {doc.status === 'uploaded' && (
-                          <Button variant="outline" size="sm">
-                            <Sparkles className="h-4 w-4" />
-                          </Button>
+                      <div>
+                        <h4 className="font-medium">{doc.title}</h4>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                          <span>{formatFileSize(doc.file_size)}</span>
+                          <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                          <Badge variant="outline">{doc.upload_status}</Badge>
+                        </div>
+                        {doc.document_analysis && doc.document_analysis.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {doc.document_analysis.map((analysis) => {
+                              const AnalysisIcon = getAnalysisIcon(analysis.analysis_type);
+                              return (
+                                <Badge key={analysis.id} variant="outline" className="text-xs">
+                                  <AnalysisIcon className="h-3 w-3 mr-1" />
+                                  {analysis.analysis_type.replace('_', ' ')}
+                                </Badge>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="summaries" className="space-y-4">
-            {analyzedDocuments.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-12">
-                    <Sparkles className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-4 text-lg font-medium text-gray-900">
-                      No document summaries yet
-                    </h3>
-                    <p className="mt-2 text-gray-600">
-                      Upload and analyze documents to see AI-generated summaries here.
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Analysis
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              analyzedDocuments.map((doc) => (
-                doc.analyses.map((analysis: any) => (
-                  <Card key={analysis.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="flex items-center">
-                            <Sparkles className="mr-2 h-5 w-5 text-blue-600" />
-                            {doc.original_filename}
-                          </CardTitle>
-                          <CardDescription>
-                            Generated on {new Date(analysis.created_at).toLocaleDateString()}
-                          </CardDescription>
-                        </div>
-                        {analysis.risk_level && getRiskBadge(analysis.risk_level)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {analysis.summary && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Summary:</h4>
-                          <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{analysis.summary}</p>
-                        </div>
-                      )}
-
-                      {analysis.key_points && analysis.key_points.length > 0 && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-2">Key Points:</h4>
-                          <ul className="space-y-1">
-                            {analysis.key_points.map((point: string, index: number) => (
-                              <li key={index} className="text-sm text-gray-700 flex items-start">
-                                <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                                {point}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {analysis.recommendations && analysis.recommendations.length > 0 && (
-                        <div>
-                          <h4 className="font-medium text-gray-900 mb-2">AI Recommendations:</h4>
-                          <ul className="space-y-1">
-                            {analysis.recommendations.map((rec: string, index: number) => (
-                              <li key={index} className="text-sm text-orange-700 flex items-start">
-                                <span className="w-2 h-2 bg-orange-600 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                                {rec}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      <div className="flex space-x-2 pt-4 border-t">
-                        <Button variant="outline" size="sm">
-                          <Eye className="mr-2 h-4 w-4" />
-                          View Full Analysis
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Download className="mr-2 h-4 w-4" />
-                          Export Summary
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ))
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </DashboardLayout>
-  );
-}
-
-export default function VaultPageWithAuth() {
-  return (
-    <AuthGuard>
-      <VaultPage />
-    </AuthGuard>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

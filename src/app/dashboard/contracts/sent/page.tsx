@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +17,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuthContext';
-import { AuthGuard } from '@/components/auth/AuthGuard';
 import { getSentContracts } from '@/lib/database/contracts';
 import type { Contract } from '@/lib/database/contracts';
 
@@ -77,20 +75,20 @@ function SentContractsPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
             <p className="text-gray-600">Loading sent contracts...</p>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
+      
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-600" />
@@ -104,12 +102,12 @@ function SentContractsPage() {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout>
+    
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -270,16 +268,9 @@ function SentContractsPage() {
           </Card>
         )}
       </div>
-    </DashboardLayout>
+    
   );
 }
 
-function SentContractsPageWithAuth() {
-  return (
-    <AuthGuard>
-      <SentContractsPage />
-    </AuthGuard>
-  );
-}
 
-export default SentContractsPageWithAuth;
+export default SentContractsPage;
