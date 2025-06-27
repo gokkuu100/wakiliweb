@@ -93,11 +93,11 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
   },
   {
     name: 'Legal Chat Assistant',
-    href: '/dashboard/chat',
+    href: '/dashboard/aichat',
     icon: MessageSquare,
     badge: stats?.aiConversations?.toString() || '0',
     children: [
-      { name: 'Ask About Kenyan Law', href: '/dashboard/chat#ask', icon: MessageCircle },
+      { name: 'Ask About Kenyan Law', href: '/dashboard/chat#askai', icon: MessageCircle },
       { name: 'Past Conversations', href: '/dashboard/chat#history', icon: History },
       { name: 'Upload + Ask a Question', href: '/dashboard/chat#upload', icon: Paperclip },
     ],

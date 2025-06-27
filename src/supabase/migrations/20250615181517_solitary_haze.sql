@@ -231,6 +231,64 @@ CREATE TABLE chat_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- AI Conversations for Legal RAG System
+CREATE TABLE ai_conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT,
+  conversation_type TEXT DEFAULT 'legal_chat',
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI Messages for Legal RAG System
+CREATE TABLE ai_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  message_type TEXT DEFAULT 'text',
+  metadata JSONB,
+  tokens_used INTEGER DEFAULT 0,
+  model_used TEXT,
+  processing_time_ms INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI Usage Analytics
+CREATE TABLE ai_usage_analytics (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  feature_type TEXT NOT NULL, -- 'chat', 'document_analysis', 'contract_generation', etc.
+  action_type TEXT NOT NULL, -- 'query', 'generation', 'analysis', etc.
+  tokens_used INTEGER DEFAULT 0,
+  model_used TEXT,
+  processing_time_ms INTEGER,
+  success BOOLEAN DEFAULT TRUE,
+  error_message TEXT,
+  metadata JSONB,
+  session_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Legal Knowledge Base (for RAG)
+CREATE TABLE legal_knowledge_base (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  document_type TEXT, -- 'case_law', 'statute', 'regulation', 'precedent'
+  jurisdiction TEXT, -- 'Kenya', 'East Africa', 'International', etc.
+  category TEXT, -- 'contract_law', 'family_law', 'corporate_law', etc.
+  source_url TEXT,
+  date_published DATE,
+  relevance_score DECIMAL(5,2) DEFAULT 0.0,
+  vector_id TEXT, -- Pinecone vector ID
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- =============================================
 -- LAWYER-SPECIFIC FEATURES
 -- =============================================
@@ -307,13 +365,39 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- =============================================
+-- USER CREATION TRIGGER
+-- =============================================
+
+-- Function to handle new user creation
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, full_name, user_type)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+    COALESCE((NEW.raw_user_meta_data->>'user_type')::user_type, 'citizen')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to create user profile when auth user is created
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_lawyer_profiles_updated_at BEFORE UPDATE ON lawyer_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_contracts_updated_at BEFORE UPDATE ON contracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_chat_conversations_updated_at BEFORE UPDATE ON chat_conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_ai_conversations_updated_at BEFORE UPDATE ON ai_conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_cases_updated_at BEFORE UPDATE ON cases FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_document_drafts_updated_at BEFORE UPDATE ON document_drafts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_legal_knowledge_base_updated_at BEFORE UPDATE ON legal_knowledge_base FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- =============================================
 -- INDEXES FOR PERFORMANCE
@@ -325,6 +409,14 @@ CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
 CREATE INDEX idx_documents_status ON documents(status);
 CREATE INDEX idx_chat_conversations_user_id ON chat_conversations(user_id);
 CREATE INDEX idx_chat_messages_conversation_id ON chat_messages(conversation_id);
+CREATE INDEX idx_ai_conversations_user_id ON ai_conversations(user_id);
+CREATE INDEX idx_ai_messages_conversation_id ON ai_messages(conversation_id);
+CREATE INDEX idx_ai_usage_analytics_user_id ON ai_usage_analytics(user_id);
+CREATE INDEX idx_ai_usage_analytics_feature_type ON ai_usage_analytics(feature_type);
+CREATE INDEX idx_ai_usage_analytics_created_at ON ai_usage_analytics(created_at);
+CREATE INDEX idx_legal_knowledge_base_document_type ON legal_knowledge_base(document_type);
+CREATE INDEX idx_legal_knowledge_base_category ON legal_knowledge_base(category);
+CREATE INDEX idx_legal_knowledge_base_vector_id ON legal_knowledge_base(vector_id);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_cases_lawyer_id ON cases(lawyer_id);
@@ -343,6 +435,10 @@ ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_usage_analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE legal_knowledge_base ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cases ENABLE ROW LEVEL SECURITY;
 
@@ -425,3 +521,29 @@ CREATE POLICY "Lawyers can manage case documents" ON case_documents FOR SELECT U
 CREATE POLICY "Users can create own lawyer profile" ON lawyer_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can view own lawyer profile" ON lawyer_profiles FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own lawyer profile" ON lawyer_profiles FOR UPDATE USING (auth.uid() = user_id);
+
+-- AI Conversations: users can manage their own AI conversations
+CREATE POLICY "Users can manage own ai conversations" ON ai_conversations
+  FOR ALL USING (auth.uid() = user_id);
+
+-- AI Messages: users can manage messages in their own conversations
+CREATE POLICY "Users can manage ai messages" ON ai_messages FOR SELECT USING (
+  conversation_id IN (SELECT id FROM ai_conversations WHERE user_id = auth.uid())
+);
+CREATE POLICY "Users can insert ai messages" ON ai_messages FOR INSERT WITH CHECK (
+  conversation_id IN (SELECT id FROM ai_conversations WHERE user_id = auth.uid())
+);
+
+-- AI Usage Analytics: users can view their own usage analytics
+CREATE POLICY "Users can view own ai usage" ON ai_usage_analytics
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own ai usage" ON ai_usage_analytics
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Legal Knowledge Base: all authenticated users can read
+CREATE POLICY "Authenticated users can read legal knowledge" ON legal_knowledge_base
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Admins can manage legal knowledge base (add this policy if needed)
+-- CREATE POLICY "Admins can manage legal knowledge" ON legal_knowledge_base
+--   FOR ALL USING (auth.uid() IN (SELECT id FROM users WHERE user_type = 'admin'));
