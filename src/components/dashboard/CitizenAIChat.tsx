@@ -59,6 +59,7 @@ export function CitizenAIChat({ className }: CitizenAIChatProps) {
   const [showWelcome, setShowWelcome] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasLoadedInitialData = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,11 +72,12 @@ export function CitizenAIChat({ className }: CitizenAIChatProps) {
   }, [messages]);
 
   useEffect(() => {
-    // Load conversations on mount
-    if (user) {
+    // Load conversations on mount - only once to prevent infinite loops
+    if (user?.id && !hasLoadedInitialData.current) {
+      hasLoadedInitialData.current = true;
       loadConversations();
     }
-  }, [user, loadConversations]);
+  }, [user?.id, loadConversations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

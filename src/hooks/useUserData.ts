@@ -40,6 +40,7 @@ export function useUserData() {
     isLoading: true,
     error: null,
   });
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -54,6 +55,12 @@ export function useUserData() {
     }
 
     const fetchUserData = async () => {
+      // Don't fetch if we just fetched within the last 30 seconds
+      const now = Date.now();
+      if (now - lastFetchTime < 30000) {
+        return;
+      }
+
       try {
         setUserData(prev => ({ ...prev, isLoading: true, error: null }));
 
@@ -71,6 +78,7 @@ export function useUserData() {
           isLoading: false,
           error: null,
         });
+        setLastFetchTime(now);
       } catch (error) {
         console.error('Error fetching user data:', error);
         setUserData(prev => ({
@@ -83,11 +91,11 @@ export function useUserData() {
 
     fetchUserData();
 
-    // Refetch data every 30 seconds to keep it fresh
-    const interval = setInterval(fetchUserData, 30000);
+    // Refetch data every 5 minutes to keep it fresh (reduced from 30 seconds)
+    const interval = setInterval(fetchUserData, 300000);
 
     return () => clearInterval(interval);
-  }, [user, isAuthenticated]);
+  }, [user?.id, isAuthenticated, lastFetchTime]); // Only depend on user.id
 
   const refreshUserData = async () => {
     if (!user || !isAuthenticated) return;
@@ -108,6 +116,7 @@ export function useUserData() {
         isLoading: false,
         error: null,
       });
+      setLastFetchTime(Date.now()); // Update the last fetch time
     } catch (error) {
       console.error('Error refreshing user data:', error);
       setUserData(prev => ({

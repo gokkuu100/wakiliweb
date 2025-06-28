@@ -27,6 +27,7 @@ import {
 import { useAuth } from '@/hooks/useAuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { getUserUsageStats, getPaymentHistory } from '@/lib/database/billing';
+import { AIPreferencesSettings } from '@/components/dashboard/AIPreferencesSettings';
 
 export default function AccountPage() {
   const { user, userProfile, isLoading: authLoading } = useAuth();
@@ -359,6 +360,23 @@ export default function AccountPage() {
 
         {/* Preferences Tab */}
         <TabsContent value="preferences" id="preferences" className="space-y-6">
+          {/* AI Preferences Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="w-5 h-5 mr-2" />
+                AI Preferences
+              </CardTitle>
+              <CardDescription>
+                Customize how AI responds to your queries and choose your preferred models
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AIPreferencesSettings />
+            </CardContent>
+          </Card>
+
+          {/* Notification Preferences */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">

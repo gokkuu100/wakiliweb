@@ -47,3 +47,4 @@ next-env.d.ts
 .env.example.env.local
 .env.legal-ai
 .env.example
+/src/supabase

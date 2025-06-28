@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 export interface SubscriptionPlan {
   id: string;
@@ -118,13 +113,18 @@ export async function getUserUsageStats(userId: string): Promise<UsageStats> {
       daysRemainingInTrial = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
     }
 
+    // Extract the subscription plan (it's an array from the join)
+    const subscriptionPlan = Array.isArray(subscription.subscription_plans) 
+      ? subscription.subscription_plans[0] 
+      : subscription.subscription_plans;
+
     return {
       contractsUsed: subscription.contracts_used,
-      contractsLimit: subscription.subscription_plans.contracts_limit,
+      contractsLimit: subscriptionPlan?.contracts_limit || null,
       aiQueriesUsed: subscription.ai_queries_used,
-      aiQueriesLimit: subscription.subscription_plans.ai_queries_limit,
+      aiQueriesLimit: subscriptionPlan?.ai_queries_limit || null,
       documentsAnalyzedUsed: subscription.documents_analyzed_used,
-      documentsAnalyzedLimit: subscription.subscription_plans.document_analysis_limit,
+      documentsAnalyzedLimit: subscriptionPlan?.document_analysis_limit || null,
       isTrialing,
       trialEndsAt: subscription.trial_end,
       daysRemainingInTrial

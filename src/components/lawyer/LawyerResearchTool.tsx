@@ -39,7 +39,7 @@ interface LawyerResearchToolProps {
 }
 
 export function LawyerResearchTool({ className }: LawyerResearchToolProps) {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const {
     messages,
     currentConversationId,
@@ -60,16 +60,18 @@ export function LawyerResearchTool({ className }: LawyerResearchToolProps) {
   const [activeTab, setActiveTab] = useState('research');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasLoadedInitialData = useRef(false);
 
   // Check if user is a lawyer
   const isLawyer = userProfile?.user_type === 'lawyer';
 
   useEffect(() => {
-    if (isLawyer) {
+    if (isLawyer && user?.id && !hasLoadedInitialData.current) {
+      hasLoadedInitialData.current = true;
       loadConversations();
       loadUsageStats();
     }
-  }, [isLawyer, loadConversations, loadUsageStats]);
+  }, [isLawyer, user?.id, loadConversations, loadUsageStats]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

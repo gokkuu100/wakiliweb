@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 export interface Document {
   id: string;
@@ -330,11 +325,16 @@ export async function getDocumentUsageStats(userId: string): Promise<{
       .eq('status', 'active')
       .single();
 
+    // Extract the subscription plan (it's an array from the join)
+    const subscriptionPlan = Array.isArray(subscription?.subscription_plans) 
+      ? subscription.subscription_plans[0] 
+      : subscription?.subscription_plans;
+
     return {
       documentsUploaded: documentsUploaded || 0,
       documentsAnalyzed: documentsAnalyzed || 0,
       analysesUsed: subscription?.documents_analyzed_used || 0,
-      analysesLimit: subscription?.subscription_plans?.document_analysis_limit
+      analysesLimit: subscriptionPlan?.document_analysis_limit || null
     };
   } catch (error) {
     console.error('Error fetching document usage stats:', error);

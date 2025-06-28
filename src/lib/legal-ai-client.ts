@@ -3,10 +3,8 @@
  * Handles communication with the backend Legal AI service
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 export interface ChatQueryRequest {
@@ -77,11 +75,10 @@ export interface UsageStats {
 }
 
 class LegalAIClient {
-  private supabase = createClient(supabaseUrl, supabaseAnonKey);
   private baseUrl = `${backendUrl}/api/v1/legal-ai`;
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const { data: { session } } = await this.supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.access_token) {
       throw new Error('No authentication token available');

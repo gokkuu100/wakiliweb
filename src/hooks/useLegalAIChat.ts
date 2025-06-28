@@ -8,7 +8,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth } from './useAuthContext';
 import { useToast } from './use-toast';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 // Type definitions for Legal AI
 interface ChatQueryRequest {
@@ -84,7 +84,6 @@ const createLegalAIClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const getAuthHeaders = async (): Promise<HeadersInit> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -194,6 +193,8 @@ export function useLegalAIChat(): UseLegalAIChatReturn {
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Array<{ id: string; title: string; updated_at: string }>>([]);
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingUsageStats, setIsLoadingUsageStats] = useState(false);
   
   // Refs for retry functionality
   const lastQueryRef = useRef<string>('');
@@ -359,8 +360,9 @@ export function useLegalAIChat(): UseLegalAIChatReturn {
   }, []);
 
   const loadConversations = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id || isLoadingConversations) return;
 
+    setIsLoadingConversations(true);
     try {
       const conversations = await legalAIClient.getConversations(20);
       setConversations(conversations.map((conv: any) => ({
@@ -370,8 +372,10 @@ export function useLegalAIChat(): UseLegalAIChatReturn {
       })));
     } catch (err) {
       console.error('Failed to load conversations:', err);
+    } finally {
+      setIsLoadingConversations(false);
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id
 
   const deleteConversation = useCallback(async (conversationId: string) => {
     if (!user) return;
@@ -401,15 +405,18 @@ export function useLegalAIChat(): UseLegalAIChatReturn {
   }, [user, currentConversationId, startNewConversation, toast]);
 
   const loadUsageStats = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id || isLoadingUsageStats) return;
 
+    setIsLoadingUsageStats(true);
     try {
       const stats = await legalAIClient.getUsageStats();
       setUsageStats(stats);
     } catch (err) {
       console.error('Failed to load usage stats:', err);
+    } finally {
+      setIsLoadingUsageStats(false);
     }
-  }, [user]);
+  }, [user?.id]); // Remove isLoadingUsageStats from dependencies
 
   return {
     // State

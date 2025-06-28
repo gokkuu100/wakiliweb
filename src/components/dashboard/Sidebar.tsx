@@ -144,10 +144,10 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
   const [notificationCounts, setNotificationCounts] = useState<any>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       getNotificationCountsByType(user.id).then(setNotificationCounts);
     }
-  }, [user, stats]);
+  }, [user?.id]); // Only depend on user.id, not stats which changes frequently
 
   const navigation = getNavigation({ ...stats, notifications }, notificationCounts);
 

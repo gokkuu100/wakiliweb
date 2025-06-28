@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 export interface LawyerProfile {
   id: string;
@@ -306,10 +301,19 @@ export async function addCaseActivity(
 
     // Update case total hours if billable
     if (activityData.billable_hours) {
+      // First get the current total hours
+      const { data: currentCase } = await supabase
+        .from('lawyer_cases')
+        .select('total_hours')
+        .eq('id', caseId)
+        .single();
+
+      const newTotalHours = (currentCase?.total_hours || 0) + activityData.billable_hours;
+
       await supabase
         .from('lawyer_cases')
         .update({
-          total_hours: supabase.sql`total_hours + ${activityData.billable_hours}`
+          total_hours: newTotalHours
         })
         .eq('id', caseId);
     }
