@@ -203,62 +203,61 @@ export function CitizenAIChat({ className }: CitizenAIChatProps) {
 
           {/* Welcome Screen */}
           {showWelcome && messages.length === 0 && (
-            <ScrollArea className="flex-1 h-full">
+            <div className="h-full overflow-y-auto">
               <div className="flex items-center justify-center p-8 min-h-full">
                 <div className="text-center space-y-4 max-w-md">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                    <Bot className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Welcome to Legal AI Assistant
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Get simple, easy-to-understand answers to your legal questions. 
-                      I'll help explain complex legal matters in plain language.
-                    </p>
-                  </div>
-                  
-                  {/* Important Notice */}
-                  <Alert className="text-left">
-                    <Shield className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Important:</strong> This AI provides general legal information only. 
-                      For specific legal advice, please consult with a qualified lawyer.
-                    </AlertDescription>
-                  </Alert>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                  <Bot className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Welcome to Legal AI Assistant
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Get simple, easy-to-understand answers to your legal questions. 
+                    I'll help explain complex legal matters in plain language.
+                  </p>
+                </div>
+                
+                {/* Important Notice */}
+                <Alert className="text-left">
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Important:</strong> This AI provides general legal information only. 
+                    For specific legal advice, please consult with a qualified lawyer.
+                  </AlertDescription>
+                </Alert>
 
-                  {/* Sample Questions */}
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                      <Lightbulb className="h-4 w-4" />
-                      Try asking about:
-                    </div>
-                    <div className="grid gap-2">
-                      {SAMPLE_QUESTIONS.map((question, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          className="text-left justify-start h-auto py-2 px-3"
-                          onClick={() => handleSampleQuestion(question)}
-                          disabled={isLoading}
-                        >
-                          <HelpCircle className="h-3 w-3 mr-2 flex-shrink-0" />
-                          <span className="text-xs">{question}</span>
-                        </Button>
-                      ))}
-                    </div>
+                {/* Sample Questions */}
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4" />
+                    Try asking about:
+                  </div>
+                  <div className="grid gap-2">
+                    {SAMPLE_QUESTIONS.map((question, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        className="text-left justify-start h-auto py-2 px-3"
+                        onClick={() => handleSampleQuestion(question)}
+                        disabled={isLoading}
+                      >
+                        <HelpCircle className="h-3 w-3 mr-2 flex-shrink-0" />
+                        <span className="text-xs">{question}</span>
+                      </Button>
+                    ))}
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           )}
 
           {/* Messages */}
           {messages.length > 0 && (
-            <ScrollArea className="flex-1 h-full">
-              <div className="p-4 space-y-4">
+            <div className="h-full overflow-y-auto">
+              <div className="p-4 space-y-4 min-h-full">
                 {messages.map((message, index) => (
                   <div
                     key={message.id}
@@ -334,7 +333,7 @@ export function CitizenAIChat({ className }: CitizenAIChatProps) {
                 
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
 

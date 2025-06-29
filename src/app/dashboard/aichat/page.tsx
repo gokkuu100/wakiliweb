@@ -74,46 +74,10 @@ export default function ChatPage() {
       </div>
 
       {/* Features Overview */}
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <Card className="border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Smart Chat</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Interactive AI chat with legal expertise
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Scale className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Kenyan Law</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Specialized in Kenyan legal framework
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">{isLawyer ? "Research Tools" : "Simple Guidance"}</h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {isLawyer ? "Detailed analysis with citations" : "Easy-to-understand explanations"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      
 
       {/* AI Chat Component */}
-      <div className="h-[calc(100vh-300px)] min-h-[600px]">
+      <div className="h-[calc(100vh-600px)] min-h-[700px]">
         {isLawyer ? (
           <LawyerResearchTool className="h-full" />
         ) : (
