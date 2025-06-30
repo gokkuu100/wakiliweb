@@ -83,12 +83,12 @@ const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] =>
     ],
   },
   {
-    name: 'Legal Vault',
-    href: '/dashboard/vault',
+    name: 'Legal Document Summary',
+    href: '/dashboard/documents-ai',
     icon: FolderOpen,
     children: [
-      { name: 'Uploaded Documents', href: '/dashboard/vault#documents', icon: Upload },
-      { name: 'Document Summaries', href: '/dashboard/vault#summaries', icon: Eye },
+      { name: 'Upload Documents', href: '/dashboard/documents-ai#upload', icon: Upload },
+      { name: 'Document Analysis', href: '/dashboard/documents-ai#analysis', icon: Eye },
     ],
   },
   {
