@@ -16,10 +16,10 @@ import {
   ArrowLeft
 } from 'lucide-react';
 
-import DocumentUploader from '@/components/dashboard/aidocument/DocumentUploader';
-import DocumentList from '@/components/dashboard/aidocument/DocumentList';
-import DocumentAnalysis from '@/components/dashboard/aidocument/DocumentAnalysis';
-import DocumentChat from '@/components/dashboard/aidocument/DocumentChat';
+import DocumentUploader from '@/components/citizendashboard/aidocument/DocumentUploader';
+import DocumentList from '@/components/citizendashboard/aidocument/DocumentList';
+import DocumentAnalysis from '@/components/citizendashboard/aidocument/DocumentAnalysis';
+import DocumentChat from '@/components/citizendashboard/aidocument/DocumentChat';
 import { documentService } from '@/lib/services/documentService';
 import { Document, DocumentStats } from '@/types/documents';
 
@@ -56,15 +56,61 @@ export default function VaultPage() {
   const loadStats = async () => {
     try {
       const response = await documentService.getUserStats();
+      console.log('Stats response:', response); // Debug log
       setStats(response);
     } catch (err) {
       console.error('Error loading stats:', err);
+      // Set default stats if API fails
+      setStats({
+        total_documents: documents.length,
+        documents_this_month: 0,
+        questions_asked: 0,
+        questions_this_month: 0,
+        storage_used_mb: 0,
+        subscription_limits: {
+          max_documents_per_month: 50,
+          max_questions_per_document: 5,
+          max_storage_mb: 1000
+        }
+      });
     }
   };
 
   const handleUploadSuccess = (document: Document) => {
     setDocuments(prev => [document, ...prev]);
     loadStats(); // Refresh stats
+  };
+
+  const handleStatsRefresh = () => {
+    loadStats();
+  };
+
+  const handleDocumentRefresh = async (documentId: string) => {
+    try {
+      // Refresh the specific document data
+      const response = await documentService.getDocumentStatus(documentId);
+      
+      // Update the document in the list
+      setDocuments(prev => prev.map(doc => 
+        doc.id === documentId 
+          ? { ...doc, questions_used: response.questions_used, questions_remaining: response.questions_remaining }
+          : doc
+      ));
+      
+      // Update selected document if it's the same one
+      if (selectedDocument && selectedDocument.id === documentId) {
+        setSelectedDocument(prev => prev ? {
+          ...prev,
+          questions_used: response.questions_used,
+          questions_remaining: response.questions_remaining
+        } : null);
+      }
+      
+      // Also refresh stats
+      loadStats();
+    } catch (err) {
+      console.error('Error refreshing document:', err);
+    }
   };
 
   const handleDocumentSelect = (document: Document) => {
@@ -176,6 +222,8 @@ export default function VaultPage() {
         <DocumentChat 
           document={selectedDocument}
           onBack={handleBackToList}
+          onStatsRefresh={handleStatsRefresh}
+          onDocumentRefresh={handleDocumentRefresh}
         />
       </div>
     );
@@ -191,19 +239,6 @@ export default function VaultPage() {
             Upload and analyze legal documents with AI-powered insights
           </p>
         </div>
-        
-        {stats && (
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div className="bg-white p-4 rounded-lg border">
-              <div className="text-2xl font-bold text-blue-600">{stats.total_documents}</div>
-              <div className="text-sm text-gray-600">Total Documents</div>
-            </div>
-            <div className="bg-white p-4 rounded-lg border">
-              <div className="text-2xl font-bold text-green-600">{stats.questions_asked}</div>
-              <div className="text-sm text-gray-600">Questions Asked</div>
-            </div>
-          </div>
-        )}
       </div>
 
       {error && (
@@ -279,53 +314,27 @@ export default function VaultPage() {
       {stats && (
         <Card>
           <CardHeader>
-            <CardTitle>Usage Statistics</CardTitle>
+            <CardTitle className="flex items-center">
+              <MessageSquare className="mr-2 h-5 w-5" />
+              Usage Statistics
+            </CardTitle>
+            <CardDescription>
+              Your document and question activity overview
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.total_documents}</div>
-                <div className="text-sm text-gray-600">Total Documents</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="text-center p-6 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="text-4xl font-bold text-blue-600 mb-2">{stats.total_documents || 0}</div>
+                <div className="text-sm text-gray-600 font-medium">Total Documents</div>
+                <div className="text-xs text-gray-500 mt-1">Uploaded to your vault</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.documents_this_month}</div>
-                <div className="text-sm text-gray-600">This Month</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.questions_asked}</div>
-                <div className="text-sm text-gray-600">Questions Asked</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{Math.round(stats.storage_used_mb)}MB</div>
-                <div className="text-sm text-gray-600">Storage Used</div>
+              <div className="text-center p-6 bg-green-50 rounded-lg border border-green-100">
+                <div className="text-4xl font-bold text-green-600 mb-2">{stats.questions_asked || 0}</div>
+                <div className="text-sm text-gray-600 font-medium">Questions Asked</div>
+                <div className="text-xs text-gray-500 mt-1">AI interactions total</div>
               </div>
             </div>
-            
-            {stats.subscription_limits && (
-              <div className="mt-4 pt-4 border-t">
-                <h4 className="font-medium mb-2">Subscription Limits</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <div className="flex justify-between">
-                      <span>Documents/Month:</span>
-                      <span>{stats.documents_this_month}/{stats.subscription_limits.max_documents_per_month}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between">
-                      <span>Storage:</span>
-                      <span>{Math.round(stats.storage_used_mb)}MB/{stats.subscription_limits.max_storage_mb}MB</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between">
-                      <span>Questions/Doc:</span>
-                      <span>Up to {stats.subscription_limits.max_questions_per_document}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}

@@ -100,7 +100,13 @@ class DocumentService {
     return response.json();
   }
 
-  async getDocumentStatus(documentId: string): Promise<{ status: string; ai_analysis_status?: string; progress?: number }> {
+  async getDocumentStatus(documentId: string): Promise<{ 
+    status: string; 
+    ai_analysis_status?: string; 
+    progress?: number; 
+    questions_used?: number;
+    questions_remaining?: number;
+  }> {
     const response = await fetch(`${API_BASE_URL}/api/v1/documents/${documentId}/status`, {
       method: 'GET',
       headers: await this.getAuthHeaders(),
@@ -229,7 +235,9 @@ class DocumentService {
       throw new Error(`Failed to fetch user stats: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    // The backend returns data wrapped in a 'data' field
+    return result.data || result;
   }
 
   // Utility method to poll document status until processing is complete

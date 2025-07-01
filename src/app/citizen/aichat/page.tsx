@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuthContext';
-import { CitizenAIChat } from '@/components/dashboard/CitizenAIChat';
+import { CitizenAIChat } from '@/components/citizendashboard/CitizenAIChat';
 import { LawyerResearchTool } from '@/components/lawyer/LawyerResearchTool';
 import { 
   MessageSquare, 

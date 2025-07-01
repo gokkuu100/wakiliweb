@@ -57,80 +57,80 @@ interface NavigationItem {
 const getNavigation = (stats: any, notificationCounts: any): NavigationItem[] => [
   {
     name: 'Dashboard',
-    href: '/dashboard',
+    href: '/citizen',
     icon: Home,
   },
   {
     name: 'My Contracts',
-    href: '/dashboard/contracts',
+    href: '/citizen/contracts',
     icon: FileText,
     badge: stats?.totalContracts?.toString() || '0',
     children: [
-      { name: 'Create New Contract', href: '/dashboard/contracts/create', icon: Plus },
-      { name: 'View All Contracts', href: '/dashboard/contracts#all', icon: Eye },
-      { name: 'Pending Signatures', href: '/dashboard/contracts/pending', icon: Clock, badge: notificationCounts?.signatures?.toString() || '0' },
-      { name: 'Sent for Signing', href: '/dashboard/contracts/sent', icon: Send },
-      { name: 'Signed Contracts', href: '/dashboard/contracts/signed', icon: CheckCircle },
-      { name: 'Upload My Own Contract', href: '/dashboard/contracts/upload', icon: Upload },
+      { name: 'Create New Contract', href: '/citizen/contracts/create', icon: Plus },
+      { name: 'View All Contracts', href: '/citizen/contracts#all', icon: Eye },
+      { name: 'Pending Signatures', href: '/citizen/contracts/pending', icon: Clock, badge: notificationCounts?.signatures?.toString() || '0' },
+      { name: 'Sent for Signing', href: '/citizen/contracts/sent', icon: Send },
+      { name: 'Signed Contracts', href: '/citizen/contracts/signed', icon: CheckCircle },
+      { name: 'Upload My Own Contract', href: '/citizen/contracts/upload', icon: Upload },
     ],
   },
   {
     name: 'Contract AI Assistant',
-    href: '/dashboard/contract-ai',
+    href: '/citizen/contract-ai',
     icon: Bot,
     children: [
-      { name: 'Start Contract from Description', href: '/dashboard/contract-ai', icon: MessageCircle },
+      { name: 'Start Contract from Description', href: '/citizen/contract-ai', icon: MessageCircle },
     ],
   },
   {
     name: 'Legal Document Summary',
-    href: '/dashboard/documents-ai',
+    href: '/citizen/documents-ai',
     icon: FolderOpen,
     children: [
-      { name: 'Upload Documents', href: '/dashboard/documents-ai#upload', icon: Upload },
-      { name: 'Document Analysis', href: '/dashboard/documents-ai#analysis', icon: Eye },
+      { name: 'Upload Documents', href: '/citizen/documents-ai#upload', icon: Upload },
+      { name: 'Document Analysis', href: '/citizen/documents-ai#analysis', icon: Eye },
     ],
   },
   {
     name: 'Legal Chat Assistant',
-    href: '/dashboard/aichat',
+    href: '/citizen/aichat',
     icon: MessageSquare,
     badge: stats?.aiConversations?.toString() || '0',
     children: [
-      { name: 'Ask About Kenyan Law', href: '/dashboard/chat#askai', icon: MessageCircle },
-      { name: 'Past Conversations', href: '/dashboard/chat#history', icon: History },
-      { name: 'Upload + Ask a Question', href: '/dashboard/chat#upload', icon: Paperclip },
+      { name: 'Ask About Kenyan Law', href: '/citizen/chat#askai', icon: MessageCircle },
+      { name: 'Past Conversations', href: '/citizen/chat#history', icon: History },
+      { name: 'Upload + Ask a Question', href: '/citizen/chat#upload', icon: Paperclip },
     ],
   },
   {
     name: 'Find a Lawyer',
-    href: '/dashboard/lawyers',
+    href: '/citizen/lawyers',
     icon: Scale,
     children: [
-      { name: 'Lawyers Near Me', href: '/dashboard/lawyers/nearby', icon: MapPin },
-      { name: 'Suggested Lawyers by Need', href: '/dashboard/lawyers/suggested', icon: Brain },
+      { name: 'Lawyers Near Me', href: '/citizen/lawyers/nearby', icon: MapPin },
+      { name: 'Suggested Lawyers by Need', href: '/citizen/lawyers/suggested', icon: Brain },
     ],
   },
   {
     name: 'Notifications',
-    href: '/dashboard/notifications',
+    href: '/citizen/notifications',
     icon: Bell,
     badge: stats?.notifications?.unread?.toString() || '0',
     children: [
-      { name: 'Pending Signatures', href: '/dashboard/notifications#signature_request', icon: Key, badge: notificationCounts?.signatures?.toString() || '0' },
-      { name: 'AI Replies', href: '/dashboard/notifications#ai_response', icon: Sparkles, badge: notificationCounts?.aiReplies?.toString() || '0' },
-      { name: 'System Updates', href: '/dashboard/notifications#system', icon: Settings, badge: notificationCounts?.system?.toString() || '0' },
+      { name: 'Pending Signatures', href: '/citizen/notifications#signature_request', icon: Key, badge: notificationCounts?.signatures?.toString() || '0' },
+      { name: 'AI Replies', href: '/citizen/notifications#ai_response', icon: Sparkles, badge: notificationCounts?.aiReplies?.toString() || '0' },
+      { name: 'System Updates', href: '/citizen/notifications#system', icon: Settings, badge: notificationCounts?.system?.toString() || '0' },
     ],
   },
   {
     name: 'My Account',
-    href: '/dashboard/account',
+    href: '/citizen/account',
     icon: User,
     children: [
-      { name: 'View Profile', href: '/dashboard/account#profile', icon: User },
-      { name: 'Edit Info', href: '/dashboard/account#profile', icon: Edit },
-      { name: 'Change Password', href: '/dashboard/account#security', icon: Lock },
-      { name: 'Billing & Plan', href: '/dashboard/account#usage', icon: CreditCard },
+      { name: 'View Profile', href: '/citizen/account#profile', icon: User },
+      { name: 'Edit Info', href: '/citizen/account#profile', icon: Edit },
+      { name: 'Change Password', href: '/citizen/account#security', icon: Lock },
+      { name: 'Billing & Plan', href: '/citizen/account#usage', icon: CreditCard },
     ],
   },
 ];
@@ -177,7 +177,7 @@ export function Sidebar({ open, setOpen }: SidebarProps) {
   };
 
   const isActive = (href: string) => {
-    if (href === '/dashboard') {
+    if (href === '/citizen') {
       return pathname === href;
     }
     return pathname.startsWith(href);

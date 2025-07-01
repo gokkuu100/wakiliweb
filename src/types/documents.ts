@@ -14,6 +14,8 @@ export interface Document {
   ai_analysis_status?: 'pending' | 'processing' | 'completed' | 'failed';
   summary?: string;
   chunks_count?: number;
+  questions_used?: number;
+  questions_remaining?: number;
   created_at: string;
   updated_at: string;
   user_id: string;

@@ -173,6 +173,7 @@ export default function DocumentList({
                     onStartChat(document);
                   }}
                   title="Start Q&A Chat"
+                  className="hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer"
                 >
                   <MessageSquare className="h-4 w-4" />
                 </Button>
@@ -186,6 +187,7 @@ export default function DocumentList({
                   onDocumentSelect(document);
                 }}
                 title="View Analysis"
+                className="hover:bg-green-100 hover:text-green-700 transition-colors cursor-pointer"
               >
                 <Eye className="h-4 w-4" />
               </Button>
@@ -199,6 +201,7 @@ export default function DocumentList({
                     onReprocess(document.id);
                   }}
                   title="Reprocess Document"
+                  className="hover:bg-yellow-100 hover:text-yellow-700 transition-colors cursor-pointer"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
@@ -214,7 +217,7 @@ export default function DocumentList({
                   }
                 }}
                 title="Delete Document"
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

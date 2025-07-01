@@ -23,9 +23,11 @@ import { Document, ChatMessage } from '@/types/documents';
 interface DocumentChatProps {
   document: Document;
   onBack: () => void;
+  onStatsRefresh?: () => void;
+  onDocumentRefresh?: (documentId: string) => void;
 }
 
-export default function DocumentChat({ document, onBack }: DocumentChatProps) {
+export default function DocumentChat({ document, onBack, onStatsRefresh, onDocumentRefresh }: DocumentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,32 +52,30 @@ export default function DocumentChat({ document, onBack }: DocumentChatProps) {
       setLoadingHistory(true);
       const response = await documentService.getDocumentQuestions(document.id);
       
-      // Transform the questions and answers to chat messages
+      // Transform the Q&A sessions to chat messages
       const chatMessages: ChatMessage[] = [];
       
-      response.questions.forEach((questionData: any) => {
+      response.questions.forEach((sessionData: any) => {
         // Add user question
         chatMessages.push({
-          id: `q-${questionData.id}`,
+          id: `q-${sessionData.id}`,
           type: 'user',
-          content: questionData.question,
-          timestamp: questionData.created_at
+          content: sessionData.question,
+          timestamp: sessionData.created_at
         });
         
-        // Add assistant answer if available
-        if (questionData.document_answers && questionData.document_answers.length > 0) {
-          const answer = questionData.document_answers[0];
+        // Add assistant answer
+        if (sessionData.answer) {
           chatMessages.push({
-            id: `a-${answer.id}`,
+            id: `a-${sessionData.id}`,
             type: 'assistant',
-            content: answer.answer,
-            timestamp: answer.created_at,
-            sources: answer.source_chunks ? JSON.parse(answer.source_chunks) : []
+            content: sessionData.answer,
+            timestamp: sessionData.created_at
           });
         }
       });
       
-      // Sort by timestamp
+      // Sort by timestamp (oldest first for better chat experience)
       chatMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       setMessages(chatMessages);
     } catch (err) {
@@ -108,6 +108,14 @@ export default function DocumentChat({ document, onBack }: DocumentChatProps) {
       );
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Refresh stats and document data after successful question
+      if (onStatsRefresh) {
+        onStatsRefresh();
+      }
+      if (onDocumentRefresh) {
+        onDocumentRefresh(document.id);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to get answer');
       console.error('Error sending message:', err);
@@ -167,9 +175,16 @@ export default function DocumentChat({ document, onBack }: DocumentChatProps) {
             Back
           </Button>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <FileText className="h-4 w-4" />
-          {document.document_type} • {document.chunks_count} chunks
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            {document.document_type} • {document.chunks_count} chunks
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {document.questions_remaining || 0} questions remaining
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 
@@ -266,30 +281,42 @@ export default function DocumentChat({ document, onBack }: DocumentChatProps) {
         )}
 
         <div className="p-4 border-t">
-          <div className="flex gap-2">
-            <Input
-              value={currentQuestion}
-              onChange={(e) => setCurrentQuestion(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question about this document..."
-              disabled={loading}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!currentQuestion.trim() || loading}
-              size="sm"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Press Enter to send • Shift+Enter for new line
-          </p>
+          {(document.questions_remaining || 0) <= 0 ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                You have reached the maximum of 5 questions for this document. 
+                Upload a new document to ask more questions.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  value={currentQuestion}
+                  onChange={(e) => setCurrentQuestion(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask a question about this document..."
+                  disabled={loading || (document.questions_remaining || 0) <= 0}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!currentQuestion.trim() || loading || (document.questions_remaining || 0) <= 0}
+                  size="sm"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Press Enter to send • Shift+Enter for new line • {document.questions_remaining || 0} questions remaining
+              </p>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -34,8 +34,6 @@ export default function DocumentUploader({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [documentType, setDocumentType] = useState('contract');
-  const [description, setDescription] = useState('');
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (disabled || uploading) return;
@@ -75,8 +73,8 @@ export default function DocumentUploader({
       const file = selectedFiles[0];
       
       const uploadOptions = {
-        document_type: documentType,
-        description: description.trim() || undefined,
+        document_type: 'other',
+        description: undefined,
         enable_ai_analysis: true,
         tags: []
       };
@@ -101,13 +99,13 @@ export default function DocumentUploader({
       
       // Create a Document object from the response
       const newDocument: Document = {
-        id: response.id,
+        id: response.document_id,
         original_filename: response.filename,
         file_path: '',
         file_size: response.file_size,
         content_type: file.type,
-        document_type: documentType,
-        description,
+        document_type: 'other',
+        description: undefined,
         tags: [],
         status: response.status as any,
         ai_analysis_enabled: response.ai_analysis_enabled,
@@ -120,7 +118,6 @@ export default function DocumentUploader({
       
       // Reset form
       setSelectedFiles([]);
-      setDescription('');
       setUploadProgress(0);
       
     } catch (error) {
@@ -147,41 +144,6 @@ export default function DocumentUploader({
 
   return (
     <div className="space-y-4">
-      {/* Document Type Selection */}
-      <div>
-        <label className="block text-sm font-medium mb-2">Document Type</label>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { value: 'contract', label: 'Contract' },
-            { value: 'legal_document', label: 'Legal Document' },
-            { value: 'compliance', label: 'Compliance' },
-            { value: 'other', label: 'Other' }
-          ].map((type) => (
-            <Button
-              key={type.value}
-              variant={documentType === type.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDocumentType(type.value)}
-              disabled={disabled || uploading}
-            >
-              {type.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium mb-2">Description (Optional)</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Brief description of the document..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none h-20 text-sm"
-          disabled={disabled || uploading}
-        />
-      </div>
-
       {/* File Drop Zone */}
       {selectedFiles.length === 0 ? (
         <div
@@ -258,6 +220,11 @@ export default function DocumentUploader({
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
             Processing...
+          </>
+        ) : selectedFiles.length > 0 ? (
+          <>
+            <Upload className="h-4 w-4 mr-2" />
+            Analyze
           </>
         ) : (
           <>

@@ -27,7 +27,7 @@ import {
 import { useAuth } from '@/hooks/useAuthContext';
 import { useUserData } from '@/hooks/useUserData';
 import { getUserUsageStats, getPaymentHistory } from '@/lib/database/billing';
-import { AIPreferencesSettings } from '@/components/dashboard/AIPreferencesSettings';
+import { AIPreferencesSettings } from '@/components/citizendashboard/AIPreferencesSettings';
 
 export default function AccountPage() {
   const { user, userProfile, isLoading: authLoading } = useAuth();

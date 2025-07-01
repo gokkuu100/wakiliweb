@@ -1,6 +1,6 @@
 'use client';
 
-import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
+import { DashboardLayout } from '@/components/citizendashboard/DashboardLayout';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 
 export default function DashboardRootLayout({
