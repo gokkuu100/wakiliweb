@@ -135,13 +135,13 @@ function DashboardPage() {
           You're on the {userProfile?.plan}. You've used {userProfile?.contractsUsed} of {(userProfile?.contractsRemaining || 0) + (userProfile?.contractsUsed || 0)} contracts this month.
         </p>
         <div className="flex flex-wrap gap-4">
-          <Link href="/dashboard/contracts/create">
+          <Link href="/citizen/contracts-generation/create">
             <Button className="bg-white text-blue-600 hover:bg-gray-100">
               <FileText className="mr-2 h-4 w-4" />
               Create New Contract
             </Button>
           </Link>
-          <Link href="/dashboard/chat#ask">
+          <Link href="/citizen/aichat">
             <Button variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
               <MessageSquare className="mr-2 h-4 w-4" />
               Ask Legal Question

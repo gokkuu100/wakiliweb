@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { knowledgeAdmin } from '@/lib/ai/core/knowledge-admin';
+import { knowledgeAdmin } from '@/lib/citizenlib/core/knowledge-admin';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 

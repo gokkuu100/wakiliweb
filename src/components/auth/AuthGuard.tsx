@@ -67,7 +67,7 @@ export function AuthGuard({
           } else if (userProfile.user_type === 'admin') {
             router.push('/admin');
           } else {
-            router.push('/dashboard');
+            router.push('/citizen');
           }
           return;
         }

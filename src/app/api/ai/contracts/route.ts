@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContractAIService } from '@/lib/ai/contracts/contract-generation';
+import { ContractAIService } from '@/lib/citizenlib/contracts/contract-generation';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 

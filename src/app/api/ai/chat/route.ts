@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LegalChatService } from '@/lib/ai/chat/legal-chat';
+import { LegalChatService } from '@/lib/citizenlib/chat/contractgenerationchat';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 

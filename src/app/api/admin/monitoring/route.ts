@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { aiMonitoring } from '@/lib/ai/core/monitoring';
+import { aiMonitoring } from '@/lib/citizenlib/core/monitoring';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 

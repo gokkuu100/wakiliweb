@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { documentAnalysis } from '@/lib/ai/documents/document-analysis';
+import { documentAnalysis } from '@/lib/citizenlib/documents/document-analysis';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 

@@ -93,7 +93,7 @@ export default function VerificationPendingPage() {
               } else {
                 // For regular users, redirect immediately upon email verification
                 setTimeout(() => {
-                  router.push('/dashboard');
+                  router.push('/citizen');
                 }, 3000);
               }
             }
@@ -133,7 +133,7 @@ export default function VerificationPendingPage() {
             } else {
               // For regular users
               setTimeout(() => {
-                router.push('/dashboard');
+                router.push('/citizen');
               }, 3000);
             }
           }
