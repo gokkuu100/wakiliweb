@@ -76,7 +76,7 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
 // Contract Creation API Methods
 export const ContractCreationAPI = {
-  // Analyze user prompt
+  // STEP 1: Analyze user prompt
   analyzePrompt: (userPrompt: string) => {
     return apiRequest('/api/v1/contract-generation/analyze-prompt', {
       method: 'POST',
@@ -84,7 +84,7 @@ export const ContractCreationAPI = {
     });
   },
 
-  // Create session with selected template
+  // STEP 2: Create session with selected template
   createSession: (templateId: string, initialPrompt: string, aiAnalysisData: any) => {
     return apiRequest('/api/v1/contract-generation/create-session', {
       method: 'POST',
@@ -96,7 +96,80 @@ export const ContractCreationAPI = {
     });
   },
 
-  // Generate clause content
+  // STEP 3: Analyze contract requirements and generate mandatory clauses
+  analyzeRequirements: (sessionId: string, explanation: string, mandatoryFields: any, templateId: string) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/analyze-requirements`, {
+      method: 'POST',
+      body: JSON.stringify({
+        explanation,
+        mandatory_fields: mandatoryFields,
+        template_id: templateId
+      })
+    });
+  },
+
+  // Search user by app_id
+  searchUserByAppId: (appId: string) => {
+    return apiRequest('/api/v1/contract-generation/search-user', {
+      method: 'POST',
+      body: JSON.stringify({ app_id: appId })
+    });
+  },
+
+  // Approve mandatory clause
+  approveClause: (sessionId: string, clauseId: string, approved: boolean, userModifications?: string) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/clauses/${clauseId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({
+        approved,
+        user_modifications: userModifications
+      })
+    });
+  },
+
+  // STEP 4: Generate optional clauses
+  generateOptionalClauses: (sessionId: string, templateId: string) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/generate-optional-clauses`, {
+      method: 'POST',
+      body: JSON.stringify({ template_id: templateId })
+    });
+  },
+
+  // Generate custom clauses
+  generateCustomClauses: (sessionId: string, customClauses: Array<{title: string, description: string}>) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/generate-custom-clauses`, {
+      method: 'POST',
+      body: JSON.stringify({ custom_clauses: customClauses })
+    });
+  },
+
+  // STEP 5: Finalize contract with legal analysis
+  finalizeContract: (sessionId: string, selectedOptionalClauses: string[], selectedCustomClauses: string[]) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/finalize`, {
+      method: 'POST',
+      body: JSON.stringify({
+        selected_optional_clauses: selectedOptionalClauses,
+        selected_custom_clauses: selectedCustomClauses
+      })
+    });
+  },
+
+  // Complete contract creation
+  completeContract: (sessionId: string, finalReviewData: any) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ final_review_data: finalReviewData })
+    });
+  },
+
+  // Generate PDF
+  generatePDF: (sessionId: string) => {
+    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/pdf`, {
+      method: 'GET'
+    });
+  },
+
+  // Legacy methods for backward compatibility
   generateClause: (sessionId: string, clauseId: string, userContext = {}) => {
     return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/generate-clause`, {
       method: 'POST',
@@ -107,31 +180,10 @@ export const ContractCreationAPI = {
     });
   },
 
-  // Approve clause
-  approveClause: (sessionId: string, clauseId: string, userModifications: string | null = null) => {
-    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/approve-clause`, {
-      method: 'POST',
-      body: JSON.stringify({
-        clause_id: clauseId,
-        user_modifications: userModifications || undefined
-      })
-    });
-  },
-
-  // Finalize contract
-  finalizeContract: (sessionId: string, finalReviewData = {}) => {
-    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/finalize`, {
-      method: 'POST',
-      body: JSON.stringify({
-        final_review_data: finalReviewData
-      })
-    });
-  },
-
   // Get user sessions
   getUserSessions: async (limit: number = 10, statusFilter: string | null = null) => {
     try {
-      let url = `/api/v1/contract-generation/sessions?limit=${limit}`;
+      let url = `/api/v1/contracts/sessions?limit=${limit}`;
       if (statusFilter) {
         url += `&status_filter=${statusFilter}`;
       }
@@ -151,10 +203,10 @@ export const ContractCreationAPI = {
   getSessionDetails: async (sessionId: string) => {
     try {
       console.log(`Fetching session details for: ${sessionId}`);
-      const result = await apiRequest(`/api/v1/contract-generation/sessions/${sessionId}`);
+      const result = await apiRequest(`/api/v1/contracts/sessions/${sessionId}`);
       console.log('Session details result:', result);
       
-      return result;
+      return result.session || result; // Handle both formats
     } catch (error) {
       console.error('Error in getSessionDetails:', error);
       throw error;
@@ -165,7 +217,7 @@ export const ContractCreationAPI = {
   getUserStats: async () => {
     try {
       console.log('Fetching user stats...');
-      const result = await apiRequest('/api/v1/contract-generation/sessions/stats');
+      const result = await apiRequest('/api/v1/contracts/sessions/stats');
       console.log('Stats API result:', result);
       
       return result;
@@ -174,42 +226,16 @@ export const ContractCreationAPI = {
       throw error;
     }
   },
-  
-  // Download contract as PDF
-  downloadContractPDF: async (contractId: string) => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error || !session?.access_token) {
-      throw new Error('Authentication required');
-    }
 
-    return {
-      downloadUrl: `${API_BASE_URL}/api/v1/contracts/${contractId}/download-pdf`,
-      getDownloadHeaders: () => ({
-        'Authorization': `Bearer ${session.access_token}`
-      })
-    };
-  },
-  
-  // Get contract preview HTML
-  getContractPreview: (sessionId: string) => {
-    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/preview`);
-  },
-  
-  // Generate optional clauses
-  generateOptionalClauses: (sessionId: string) => {
-    return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/optional-clauses`, {
-      method: 'GET'
-    });
-  },
-  
-  // Add optional clause to contract
-  addOptionalClause: (sessionId: string, clauseId: string) => {
+  // Add optional clause (updated to support new parameters)
+  addOptionalClause: (sessionId: string, clauseId: string, action: string = 'add', content?: string) => {
     return apiRequest(`/api/v1/contract-generation/sessions/${sessionId}/add-optional-clause`, {
       method: 'POST',
       body: JSON.stringify({
-        clause_id: clauseId
+        clause_id: clauseId,
+        action: action,
+        clause_content: content
       })
     });
-  }
+  },
 };

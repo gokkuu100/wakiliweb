@@ -28,7 +28,7 @@ import {
   RefreshCw,
   Filter
 } from 'lucide-react';
-import { ContractCreationFlow } from './ContractCreationFlow';
+import  ContractCreationFlow  from './ContractCreationFlow';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -39,25 +39,44 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from '@/hooks/useAuthContext';
+import { supabase } from '@/lib/supabase';
+import { makeAuthenticatedRequest } from '@/lib/auth-utils';
 
 // API Base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Contract session interface
+// Contract session interface based on actual database structure
 interface ContractSession {
   id: string;
   user_id: string;
   session_status: string;
   initial_user_prompt?: string;
+  ai_suggested_template_type?: string;
+  selected_template_id?: string;
   current_stage: string;
   current_stage_name: string;
   current_step: number;
-  completion_percentage: number;
+  total_steps: number;
+  completion_percentage: string;
   contract_title?: string;
   contract_type?: string;
   contract_id?: string;
+  session_data?: {
+    template_name?: string;
+    ai_analysis?: {
+      suggested_templates?: Array<{
+        template_name: string;
+        template_id: string;
+        confidence_score: number;
+      }>;
+    };
+  };
+  ai_analysis_data?: any;
   created_at: string;
+  updated_at: string;
   last_activity_at: string;
+  completed_at?: string;
+  expires_at?: string;
   days_ago?: number;
 }
 
@@ -90,9 +109,7 @@ export function ContractCreationHome() {
     if (isAuthenticated && !authLoading) {
       fetchUserData();
     }
-  }, [statusFilter, isAuthenticated, authLoading]);
-
-  const fetchUserData = async () => {
+  }, [statusFilter, isAuthenticated, authLoading]);  const fetchUserData = async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -104,20 +121,24 @@ export function ContractCreationHome() {
         setError('User not authenticated. Please log in.');
         return;
       }
-      
-      const { ContractCreationAPI } = await import('@/lib/contract-api');
-      
+
       try {
         // Fetch sessions first
         console.log('Fetching sessions...');
         let sessionsData;
         try {
-          sessionsData = await ContractCreationAPI.getUserSessions(
-            10, // Limit
-            statusFilter // Status filter
-          );
-          console.log('Sessions data:', sessionsData);
-          setSessions(sessionsData.sessions || []);
+          const sessionsResponse = await makeAuthenticatedRequest('/api/contract-generation/sessions', {
+            method: 'GET',
+          });
+
+          if (sessionsResponse.ok) {
+            sessionsData = await sessionsResponse.json();
+            console.log('Sessions data:', sessionsData);
+            setSessions(sessionsData.sessions || []);
+          } else {
+            console.error('Failed to fetch sessions');
+            setSessions([]);
+          }
         } catch (sessionError: any) {
           console.error('Sessions API Error:', sessionError);
           // Don't fail completely, just log the error and continue with stats
@@ -128,9 +149,25 @@ export function ContractCreationHome() {
         console.log('Fetching stats...');
         let statsData;
         try {
-          statsData = await ContractCreationAPI.getUserStats();
-          console.log('Stats data:', statsData);
-          setStats(statsData);
+          const statsResponse = await makeAuthenticatedRequest('/api/contract-generation/analytics', {
+            method: 'GET',
+          });
+
+          if (statsResponse.ok) {
+            statsData = await statsResponse.json();
+            console.log('Stats data:', statsData);
+            setStats(statsData);
+          } else {
+            console.error('Failed to fetch stats');
+            setStats({
+              total_sessions: 0,
+              completed_contracts: 0,
+              active_sessions: 0,
+              templates_used: [],
+              success_rate: 0,
+              avg_completion_time_hours: 0
+            });
+          }
         } catch (statsError: any) {
           console.error('Stats API Error:', statsError);
           // Set default stats on error
@@ -170,16 +207,16 @@ export function ContractCreationHome() {
       
       setIsFetchingMore(true);
       
-      const { ContractCreationAPI } = await import('@/lib/contract-api');
-      
-      // Fetch more sessions (we'll need to implement pagination properly later)
-      const sessionsData = await ContractCreationAPI.getUserSessions(
-        20, // Increase limit to get more results
-        statusFilter // Status filter
-      );
-      
-      // For now, just replace the sessions (later we can implement proper pagination)
-      setSessions(sessionsData.sessions || []);
+      const response = await makeAuthenticatedRequest('/api/contract-generation/sessions', {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const sessionsData = await response.json();
+        setSessions(sessionsData.sessions || []);
+      } else {
+        console.error('Failed to fetch more sessions');
+      }
       
     } catch (err) {
       console.error('Error fetching more sessions:', err);
@@ -230,7 +267,7 @@ export function ContractCreationHome() {
   if (showCreationFlow) {
     return (
       <ContractCreationFlow 
-        sessionId={activeSessionId} 
+        existingSessionId={activeSessionId || undefined} 
         onComplete={handleReturnToDashboard} 
         onCancel={handleReturnToDashboard}
       />
@@ -440,71 +477,85 @@ export function ContractCreationHome() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sessions.map((session) => (
-                <Card key={session.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg font-medium truncate">
-                        {session.contract_title || session.contract_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Untitled Contract'}
-                      </CardTitle>
-                      <Badge variant={
-                        session.session_status === 'completed' ? 'default' :
-                        session.session_status === 'active' ? 'outline' : 
-                        'secondary'
-                      }>
-                        {session.session_status.charAt(0).toUpperCase() + session.session_status.slice(1)}
-                      </Badge>
-                    </div>
-                    <CardDescription className="truncate">
-                      {session.initial_user_prompt || 'No description provided'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="flex items-center gap-2 text-sm mb-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {session.days_ago === 0 ? 'Today' : 
-                         session.days_ago === 1 ? 'Yesterday' : 
-                         `${session.days_ago} days ago`}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm mb-2">
-                      <History className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Stage: {session.current_stage_name}</span>
-                    </div>
-                    <div className="w-full bg-secondary h-2 rounded-full mt-2">
-                      <div 
-                        className="bg-primary h-2 rounded-full"
-                        style={{ width: `${session.completion_percentage}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-xs mt-1">
-                      <span className="text-muted-foreground">{Math.round(session.completion_percentage)}% complete</span>
-                      <span className="text-muted-foreground">Step {session.current_step}</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button 
-                      variant={session.contract_id ? "outline" : "default"} 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => handleResumeSession(session.id)}
-                    >
-                      {session.contract_id ? (
-                        <>
-                          <ExternalLink className="h-4 w-4 mr-1" /> 
-                          View Contract
-                        </>
-                      ) : (
-                        <>
-                          <ArrowRight className="h-4 w-4 mr-1" /> 
-                          {session.session_status === 'active' ? 'Resume Session' : 'View Details'}
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+              {sessions.map((session) => {
+                // Calculate days ago from created_at
+                const daysAgo = Math.floor((new Date().getTime() - new Date(session.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                
+                // Get template name from session data
+                const templateName = session.session_data?.template_name || 
+                                   session.session_data?.ai_analysis?.suggested_templates?.[0]?.template_name || 
+                                   'Unknown Template';
+                
+                return (
+                  <Card key={session.id} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-center">
+                        <CardTitle className="text-lg font-medium truncate">
+                          {session.contract_title || templateName || 'Untitled Contract'}
+                        </CardTitle>
+                        <Badge variant={
+                          session.session_status === 'completed' ? 'default' :
+                          session.session_status === 'active' ? 'outline' : 
+                          'secondary'
+                        }>
+                          {session.session_status.charAt(0).toUpperCase() + session.session_status.slice(1)}
+                        </Badge>
+                      </div>
+                      <CardDescription className="truncate">
+                        {session.initial_user_prompt || 'No description provided'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="flex items-center gap-2 text-sm mb-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {daysAgo === 0 ? 'Today' : 
+                           daysAgo === 1 ? 'Yesterday' : 
+                           `${daysAgo} days ago`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm mb-2">
+                        <History className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Stage: {session.current_stage_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm mb-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Type: {session.contract_type?.toUpperCase() || 'N/A'}</span>
+                      </div>
+                      <div className="w-full bg-secondary h-2 rounded-full mt-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full"
+                          style={{ width: `${parseFloat(session.completion_percentage || '0')}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between text-xs mt-1">
+                        <span className="text-muted-foreground">{Math.round(parseFloat(session.completion_percentage || '0'))}% complete</span>
+                        <span className="text-muted-foreground">Step {session.current_step} of {session.total_steps}</span>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button 
+                        variant={session.contract_id ? "outline" : "default"} 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleResumeSession(session.id)}
+                      >
+                        {session.contract_id ? (
+                          <>
+                            <ExternalLink className="h-4 w-4 mr-1" /> 
+                            View Contract
+                          </>
+                        ) : (
+                          <>
+                            <ArrowRight className="h-4 w-4 mr-1" /> 
+                            {session.session_status === 'active' ? 'Resume Session' : 'View Details'}
+                          </>
+                        )}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
             </div>
             
             {/* Load More Button */}
