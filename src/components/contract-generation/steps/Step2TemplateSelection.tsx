@@ -55,20 +55,28 @@ export default function Step2TemplateSelection({
         suggestedTemplates = session.ai_analysis_data.suggested_templates.map((template: any) => {
           console.log('Step2 - Raw template data:', template);
           console.log('Step2 - Template keys:', Object.keys(template));
+          console.log('Step2 - Template structure:', {
+            template_id: template.template_id,
+            template_name: template.template_name,
+            contract_type: template.contract_type,
+            description: template.description,
+            keywords: template.keywords,
+            use_cases: template.use_cases
+          });
           
           const relevanceScore = Number(template.confidence_score) || 0; // Backend uses confidence_score
           const matchPercentage = Math.round(relevanceScore * 100);
-          console.log('Step2 - Converting template:', template.name, 'confidence_score:', relevanceScore, 'match_percentage:', matchPercentage);
+          console.log('Step2 - Converting template:', template.template_name, 'confidence_score:', relevanceScore, 'match_percentage:', matchPercentage);
           
           return {
             id: template.template_id,
-            template_name: template.name, // Backend uses 'name' instead of 'template_name'
-            contract_type: template.template_type || 'unknown',
-            description: template.template_data?.description || 'No description available',
-            keywords: template.template_data?.keywords || [],
-            use_cases: template.template_data?.use_cases || [],
-            mandatory_clauses: template.template_data?.mandatory_clauses || {},
-            optional_clauses: template.template_data?.optional_clauses || {},
+            template_name: template.template_name, // Backend returns 'template_name' correctly
+            contract_type: template.contract_type || 'unknown',
+            description: template.description || 'No description available',
+            keywords: template.keywords || [],
+            use_cases: template.use_cases || [],
+            mandatory_clauses: template.mandatory_clauses || {},
+            optional_clauses: template.optional_clauses || {},
             is_active: true,
             match_percentage: matchPercentage,
             confidence: template.confidence,
@@ -79,12 +87,17 @@ export default function Step2TemplateSelection({
         });
         
         console.log('Step2 - Converted templates:', suggestedTemplates);
+      console.log('Step2 - Template descriptions check:', suggestedTemplates.map(t => ({ 
+        name: t.template_name, 
+        description: t.description, 
+        descriptionLength: t.description?.length 
+      })));
       }
       
       // Filter templates with score >= 70% (0.7 relevance score)
       const filteredTemplates = suggestedTemplates.filter(template => {
         const matchPercentage = Number(template.match_percentage) || 0;
-        console.log('Step2 - Filtering template:', template.template_name, 'match_percentage:', matchPercentage, 'type:', typeof matchPercentage, 'passes filter:', matchPercentage >= 70);
+        console.log('Step2 - Filtering template:', template.template_name, 'match_percentage:', matchPercentage, 'type:', typeof matchPercentage, 'passes filter:', matchPercentage >= 70, 'description:', template.description ? 'HAS DESCRIPTION' : 'NO DESCRIPTION');
         return matchPercentage >= 70; // Back to 70% threshold
       });
       

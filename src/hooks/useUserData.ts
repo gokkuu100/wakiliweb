@@ -95,7 +95,7 @@ export function useUserData() {
     const interval = setInterval(fetchUserData, 300000);
 
     return () => clearInterval(interval);
-  }, [user?.id, isAuthenticated, lastFetchTime]); // Only depend on user.id
+  }, [user?.id, isAuthenticated]); // Remove lastFetchTime from dependencies
 
   const refreshUserData = async () => {
     if (!user || !isAuthenticated) return;

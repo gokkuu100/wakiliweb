@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Search, CheckCircle, AlertCircle, User, Users, Loader2, Sparkles, ChevronLeft, ChevronRight, AlertTriangle, Check, X } from 'lucide-react';
+import { FileText, Search, CheckCircle, AlertCircle, User, Users, Loader2, Sparkles, ChevronLeft, ChevronRight, AlertTriangle, Check, X, Edit, Save, RotateCcw, ArrowRight, ArrowLeft } from 'lucide-react';
 import { makeAuthenticatedRequest } from '@/lib/auth-utils';
 import { useAuth } from '@/hooks/useAuthContext';
 import { supabase } from '@/lib/supabase';
@@ -48,11 +48,16 @@ export default function Step3ContractRequirements({
   const [analyzing, setAnalyzing] = useState(false);
   const [searchingUser, setSearchingUser] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [editingClause, setEditingClause] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [clausesGenerated, setClausesGenerated] = useState(false);
   const [party1AppId, setParty1AppId] = useState('');
   const [party2AppId, setParty2AppId] = useState('');
   const [searchResults, setSearchResults] = useState<{[key: string]: UserInfo | null}>({});
+  
+  // Alert state for mandatory clause rejection
+  const [showRejectAlert, setShowRejectAlert] = useState(false);
 
   const wordCount = userExplanation.trim().split(/\s+/).filter(word => word.length > 0).length;
   const minWords = 200;
@@ -187,15 +192,23 @@ export default function Step3ContractRequirements({
       console.log('🔧 Mandatory fields:', mandatoryFields);
       console.log('Analyzing contract with data:', requestData);
 
-      // Make the request directly without timeout wrapper
-      console.log('📡 Making request to:', `/api/contract-generation/sessions/${session.id}/analyze-requirements`);
+      // Make the request to our frontend API route
+      console.log('📡 Making request to:', `/api/contract-generation/sessions/${session.id}/generate-mandatory-clauses`);
       console.log('📡 Request data:', JSON.stringify(requestData, null, 2));
       
-      console.log('⏳ Making authenticated POST request...');
-      const response = await makeAuthenticatedRequest(`/api/contract-generation/sessions/${session.id}/analyze-requirements`, {
+      console.log('⏳ Getting auth token and making POST request to frontend API...');
+      
+      // Get auth token
+      const { data: { session: authSession }, error: authError } = await supabase.auth.getSession();
+      if (authError || !authSession?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
+      const response = await fetch(`/api/contract-generation/sessions/${session.id}/generate-mandatory-clauses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authSession.access_token}`,
         },
         body: JSON.stringify(requestData)
       });
@@ -260,6 +273,7 @@ export default function Step3ContractRequirements({
 
     // Prevent multiple simultaneous requests
     if (searchingUser) {
+      console.log('Search already in progress, skipping...');
       return;
     }
 
@@ -270,13 +284,8 @@ export default function Step3ContractRequirements({
       console.log('Searching for user with app_id:', appId);
       console.log('Making request to:', `/api/contract-generation/search-user`);
 
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 30000)
-      );
-
-      // Make the request with timeout
-      const requestPromise = makeAuthenticatedRequest(`/api/contract-generation/search-user`, {
+      // Make the request with a longer timeout and better error handling
+      const response = await makeAuthenticatedRequest(`/api/contract-generation/search-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -286,8 +295,6 @@ export default function Step3ContractRequirements({
           requesting_user_id: session?.user_id || ''
         })
       });
-
-      const response = await Promise.race([requestPromise, timeoutPromise]) as Response;
 
       console.log('Search response status:', response.status);
       
@@ -420,6 +427,89 @@ export default function Step3ContractRequirements({
     }
   };
 
+  const handleReanalyzeClause = async (clauseId: string, modifications: string) => {
+    if (!session) return;
+
+    // Prevent multiple simultaneous requests
+    if (reanalyzing) {
+      return;
+    }
+
+    try {
+      setReanalyzing(true);
+      setError(null);
+
+      console.log('Reanalyzing clause:', { clauseId, modifications });
+
+      // Make the request to reanalyze
+      const response = await makeAuthenticatedRequest(`/api/contract-generation/sessions/${session.id}/reanalyze-clause`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clause_id: clauseId,
+          user_modifications: modifications
+        })
+      });
+
+      console.log('Reanalysis response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          detail: `HTTP ${response.status}: ${response.statusText}` 
+        }));
+        console.error('Reanalysis response error:', errorData);
+        throw new Error(errorData.detail || 'Failed to reanalyze clause');
+      }
+
+      const result = await response.json();
+      console.log('Reanalysis result:', result);
+      
+      if (result.updated_clause) {
+        setGeneratedClauses(prev => prev.map(clause => 
+          clause.clause_id === clauseId ? result.updated_clause : clause
+        ));
+      }
+
+      if (result.contract_session) {
+        onSessionUpdated(result.contract_session);
+      }
+
+      // Clear editing state
+      setEditingClause(null);
+      setEditedContent('');
+
+    } catch (error) {
+      console.error('Error reanalyzing clause:', error);
+      
+      let errorMessage = 'Failed to reanalyze clause';
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = 'Reanalysis request timed out. Please try again.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
+  const handleStartEditing = (clauseId: string, currentContent: string) => {
+    setEditingClause(clauseId);
+    setEditedContent(currentContent);
+  };
+
+  const handleCancelEditing = () => {
+    setEditingClause(null);
+    setEditedContent('');
+  };
+
   const handleNextClause = () => {
     if (currentClauseIndex < generatedClauses.length - 1) {
       setCurrentClauseIndex(currentClauseIndex + 1);
@@ -432,10 +522,50 @@ export default function Step3ContractRequirements({
     }
   };
 
+  // Handle rejection attempt for mandatory clauses
+  const handleMandatoryClauseReject = () => {
+    setShowRejectAlert(true);
+  };
+
+  // Navigation functions for single clause view
+  const canNavigateNext = () => {
+    if (!generatedClauses.length || currentClauseIndex >= generatedClauses.length - 1) {
+      return false;
+    }
+    
+    // Check if current clause is approved
+    const currentClause = generatedClauses[currentClauseIndex];
+    return currentClause?.status === 'approved';
+  };
+
+  const canNavigatePrevious = () => {
+    return currentClauseIndex > 0;
+  };
+
+  const navigateToNextClause = () => {
+    if (canNavigateNext()) {
+      setCurrentClauseIndex(prev => prev + 1);
+      setEditingClause(null);
+      setEditedContent('');
+    }
+  };
+
+  const navigateToPreviousClause = () => {
+    if (canNavigatePrevious()) {
+      setCurrentClauseIndex(prev => prev - 1);
+      setEditingClause(null);
+      setEditedContent('');
+    }
+  };
+
+  // Check if all clauses are approved for proceeding
   const canProceed = () => {
-    return clausesGenerated && 
-           generatedClauses.length > 0 && 
-           generatedClauses.every(clause => clause.status === 'approved');
+    if (!clausesGenerated || !generatedClauses.length) {
+      return false;
+    }
+    
+    // All mandatory clauses must be approved
+    return generatedClauses.every(clause => clause.status === 'approved');
   };
 
   const handleProceed = () => {
@@ -692,16 +822,18 @@ export default function Step3ContractRequirements({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handlePrevClause}
-                    disabled={currentClauseIndex === 0}
+                    onClick={navigateToPreviousClause}
+                    disabled={!canNavigatePrevious()}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleNextClause}
-                    disabled={currentClauseIndex === generatedClauses.length - 1}
+                    onClick={navigateToNextClause}
+                    disabled={!canNavigateNext()}
+                    title={!canNavigateNext() && currentClauseIndex < generatedClauses.length - 1 ? 
+                      "Please approve the current clause before proceeding" : undefined}
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -726,9 +858,18 @@ export default function Step3ContractRequirements({
                 </div>
 
                 <div className="p-4 bg-gray-50 rounded-md">
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {currentClause.ai_generated_content || currentClause.content || 'No content generated yet'}
-                  </p>
+                  {editingClause === currentClause.clause_id ? (
+                    <Textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      placeholder="Edit the clause content..."
+                      className="min-h-[120px] font-mono text-sm"
+                    />
+                  ) : (
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {currentClause.ai_generated_content || currentClause.content || 'No content generated yet'}
+                    </p>
+                  )}
                 </div>
 
                 {/* AI Confidence Score */}
@@ -775,7 +916,8 @@ export default function Step3ContractRequirements({
                   </Alert>
                 )}
 
-                {currentClause.status === 'pending' && (
+                {/* Action buttons based on clause status */}
+                {currentClause.status === 'pending' || currentClause.status === 'ai_generated' || currentClause.status === 'regenerated' ? (
                   <div className="flex space-x-2">
                     <Button
                       onClick={() => handleClauseApproval(currentClause.clause_id, true)}
@@ -786,13 +928,77 @@ export default function Step3ContractRequirements({
                       Approve
                     </Button>
                     <Button
-                      onClick={() => handleClauseApproval(currentClause.clause_id, false)}
+                      onClick={() => handleStartEditing(currentClause.clause_id, currentClause.ai_generated_content || currentClause.content || '')}
+                      disabled={reanalyzing}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit & Reanalyze
+                    </Button>
+                    <Button
+                      onClick={() => handleMandatoryClauseReject()}
                       disabled={reanalyzing}
                       variant="outline"
                       className="flex-1"
                     >
                       <X className="w-4 h-4 mr-2" />
-                      Reject & Regenerate
+                      Reject
+                    </Button>
+                  </div>
+                ) : currentClause.status === 'approved' ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Clause Approved</span>
+                    </div>
+                    <Button
+                      onClick={() => handleStartEditing(currentClause.clause_id, currentClause.ai_generated_content || currentClause.content || '')}
+                      disabled={reanalyzing}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  </div>
+                ) : editingClause === currentClause.clause_id ? (
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => handleReanalyzeClause(currentClause.clause_id, editedContent)}
+                      disabled={reanalyzing || !editedContent.trim()}
+                      className="flex-1"
+                    >
+                      {reanalyzing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Reanalyzing...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Reanalyze
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleCancelEditing}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => handleStartEditing(currentClause.clause_id, currentClause.ai_generated_content || currentClause.content || '')}
+                      disabled={reanalyzing}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit & Reanalyze
                     </Button>
                   </div>
                 )}
@@ -852,6 +1058,47 @@ export default function Step3ContractRequirements({
             <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
+      )}
+
+      {/* Mandatory Clause Rejection Alert */}
+      {showRejectAlert && (
+        <Alert variant="destructive" className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Cannot Reject Mandatory Clause
+                </h3>
+                <AlertDescription className="text-gray-700 mb-4">
+                  This clause is mandatory for the contract generation and cannot be rejected. 
+                  Instead, you can edit and reanalyze the clause to better fit your requirements.
+                </AlertDescription>
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => {
+                      setShowRejectAlert(false);
+                      if (currentClause) {
+                        handleStartEditing(currentClause.clause_id, currentClause.ai_generated_content || currentClause.content || '');
+                      }
+                    }}
+                    size="sm"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit & Reanalyze
+                  </Button>
+                  <Button
+                    onClick={() => setShowRejectAlert(false)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Alert>
       )}
     </div>
   );

@@ -92,7 +92,7 @@ export interface ContractClause {
   user_editable: boolean;
   required_fields: string[];
   kenyan_law_reference: string;
-  status: 'pending' | 'approved' | 'rejected' | 'editing' | 'ai_generated';
+  status: 'pending' | 'approved' | 'rejected' | 'editing' | 'ai_generated' | 'regenerated' | 'regeneration_failed';
   user_modifications?: string;
   // AI-generated fields
   ai_generated_content?: string;
