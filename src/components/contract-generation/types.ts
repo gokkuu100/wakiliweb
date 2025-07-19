@@ -70,6 +70,20 @@ export interface ContractSession {
   current_mandatory_section: number;
   mandatory_sections_data: any;
   ai_generated_clauses: any;
+  step3_resume_data?: {
+    session_id: string;
+    has_generated_clauses: boolean;
+    current_clause_index: number;
+    total_clauses: number;
+    completed_clauses: number;
+    pending_clauses: number;
+    last_approved_clause_index: number;
+    can_proceed_to_step4: boolean;
+    ai_generated_clauses: any[];
+    clause_tracking_data: any[];
+    found_next_unapproved?: boolean;
+    next_unapproved_clause_title?: string;
+  };
   // Legacy fields for backward compatibility
   session_id?: string;
   template?: ContractTemplate;

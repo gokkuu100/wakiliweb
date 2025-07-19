@@ -52,6 +52,8 @@ export default function Step3ContractRequirements({
   const [editedContent, setEditedContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [clausesGenerated, setClausesGenerated] = useState(false);
+  const [step3Completed, setStep3Completed] = useState(false);
+  const [approvedClausesCount, setApprovedClausesCount] = useState(0);
   const [party1AppId, setParty1AppId] = useState('');
   const [party2AppId, setParty2AppId] = useState('');
   const [searchResults, setSearchResults] = useState<{[key: string]: UserInfo | null}>({});
@@ -156,6 +158,77 @@ export default function Step3ContractRequirements({
     }
   }, [data.generated_clauses]);
 
+  // Add effect to load Step 3 resume data when component mounts
+  useEffect(() => {
+    const loadStep3ResumeData = async () => {
+      if (!session?.id) return;
+      
+      try {
+        console.log('🔄 Loading Step 3 resume data...');
+        
+        // Use resume data that's already in the session (preferred method)
+        if (session.step3_resume_data) {
+          const resumeData = session.step3_resume_data;
+          console.log('✅ Step 3 resume data found in session:', resumeData);
+          
+          // If clauses were already generated, restore the state
+          if (resumeData.has_generated_clauses && resumeData.ai_generated_clauses && resumeData.ai_generated_clauses.length > 0) {
+            console.log('📋 Restoring generated clauses state...');
+            
+            // Set the generated clauses
+            setGeneratedClauses(resumeData.ai_generated_clauses);
+            setClausesGenerated(true);
+            
+            // Debug: Log clause statuses
+            console.log('🔍 Clause statuses on resume:');
+            resumeData.ai_generated_clauses.forEach((clause: any, index: number) => {
+              console.log(`  ${index}: "${clause.title}" (Order: ${clause.order}) - status: "${clause.status}" | user_approved: ${clause.user_approved}`);
+            });
+            
+            // Set the approved clauses count from resume data
+            setApprovedClausesCount(resumeData.completed_clauses || 0);
+            console.log(`📊 Setting approved clauses count to: ${resumeData.completed_clauses}`);
+            
+            // Set current clause index - resume from the next unapproved clause
+            const currentIndex = resumeData.current_clause_index || 0;
+            setCurrentClauseIndex(Math.max(0, Math.min(currentIndex, resumeData.ai_generated_clauses.length - 1)));
+            
+            console.log(`📍 Resuming from clause index: ${currentIndex} (next unapproved clause)`);
+            console.log(`📊 Progress: ${resumeData.completed_clauses}/${resumeData.total_clauses} clauses completed`);
+            console.log(`🔍 Last approved clause index: ${resumeData.last_approved_clause_index}`);
+            
+            // Show which clause we're resuming to
+            const nextClause = resumeData.ai_generated_clauses[currentIndex];
+            if (nextClause) {
+              console.log(`🎯 Resuming to clause: "${nextClause.title}" (${nextClause.is_mandatory ? 'Mandatory' : 'Optional'}) - Status: ${nextClause.status || 'pending'}`);
+            }
+            
+            if (resumeData.next_unapproved_clause_title) {
+              console.log(`⏭️  Next unapproved clause: "${resumeData.next_unapproved_clause_title}"`);
+            }
+            
+            // If all clauses are completed, user can proceed to step 4
+            if (resumeData.can_proceed_to_step4) {
+              console.log('🎉 All clauses completed - user can proceed to Step 4');
+            }
+          } else {
+            console.log('� No previously generated clauses found - starting fresh');
+          }
+        } else {
+          console.log('📝 No Step 3 resume data available - starting fresh');
+        }
+        
+      } catch (error) {
+        console.warn('⚠️ Could not load Step 3 resume data:', error);
+        // Don't show error to user as this is just resume functionality
+        // If resume fails, user can still proceed normally
+      }
+    };
+    
+    // Load resume data when component mounts or session changes
+    loadStep3ResumeData();
+  }, [session?.id, session?.step3_resume_data]);
+
   const handleAnalyzeContract = async () => {
     if (wordCount < minWords) {
       setError(`Contract explanation must contain at least ${minWords} words. Current: ${wordCount} words.`);
@@ -237,8 +310,10 @@ export default function Step3ContractRequirements({
       if (result.generated_clauses) {
         setGeneratedClauses(result.generated_clauses);
         setCurrentClauseIndex(0);
+        setApprovedClausesCount(0); // Reset approved count for new clauses
         setClausesGenerated(true);
         console.log('Generated clauses:', result.generated_clauses);
+        console.log('📊 Reset approved clauses count to 0 for new generation');
       }
 
       if (result.contract_session) {
@@ -401,10 +476,37 @@ export default function Step3ContractRequirements({
         setGeneratedClauses(prev => prev.map(clause => 
           clause.clause_id === clauseId ? result.updated_clause : clause
         ));
+        
+        // Update approved count if the clause was approved
+        if (approved && result.updated_clause.status === 'approved') {
+          setApprovedClausesCount(prev => {
+            const newCount = prev + 1;
+            console.log(`📊 Incrementing approved count: ${prev} → ${newCount}`);
+            return newCount;
+          });
+        }
       }
 
       if (result.contract_session) {
         onSessionUpdated(result.contract_session);
+      }
+
+      // Handle Step 3 completion
+      if (result.step3_completed) {
+        console.log('🎉 Step 3 completed! All clauses approved.');
+        setStep3Completed(true);
+        // You can add notification or UI feedback here
+      }
+
+      // If approved, automatically move to next clause
+      if (approved && result.success) {
+        const nextIndex = currentClauseIndex + 1;
+        if (nextIndex < generatedClauses.length) {
+          console.log(`➡️ Moving to next clause: ${nextIndex}`);
+          setCurrentClauseIndex(nextIndex);
+        } else {
+          console.log('✅ All clauses reviewed');
+        }
       }
 
     } catch (error) {
@@ -564,8 +666,8 @@ export default function Step3ContractRequirements({
       return false;
     }
     
-    // All mandatory clauses must be approved
-    return generatedClauses.every(clause => clause.status === 'approved');
+    // All mandatory clauses must be approved OR Step 3 is completed
+    return step3Completed || generatedClauses.every(clause => clause.status === 'approved');
   };
 
   const handleProceed = () => {
@@ -601,6 +703,35 @@ export default function Step3ContractRequirements({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Step 3 Progress Indicator */}
+      {clausesGenerated && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-green-800">Clause Review Progress</h3>
+              <span className="text-xs text-green-600">
+                {step3Completed ? '✅ Completed' : `${approvedClausesCount}/${generatedClauses.length} approved`}
+              </span>
+            </div>
+            <div className="w-full bg-green-200 rounded-full h-2 mb-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${generatedClauses.length > 0 ? (approvedClausesCount / generatedClauses.length) * 100 : 0}%` 
+                }}
+                title={`Progress: ${approvedClausesCount}/${generatedClauses.length} clauses approved (${generatedClauses.length > 0 ? Math.round((approvedClausesCount / generatedClauses.length) * 100) : 0}%)`}
+              ></div>
+            </div>
+            <p className="text-xs text-green-700">
+              {step3Completed 
+                ? "All mandatory clauses have been approved. You can now proceed to optional clauses."
+                : "Review and approve each mandatory clause to proceed to the next step."
+              }
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Contract Requirements Section */}
@@ -816,7 +947,7 @@ export default function Step3ContractRequirements({
               </div>
               <div className="flex items-center space-x-2">
                 <Badge variant="outline">
-                  {currentClauseIndex + 1} of {generatedClauses.length}
+                  {currentClause?.order || (currentClauseIndex + 1)} of {generatedClauses.length}
                 </Badge>
                 <div className="flex space-x-1">
                   <Button
@@ -850,10 +981,13 @@ export default function Step3ContractRequirements({
                     className={
                       currentClause.status === 'approved' ? 'bg-green-100 text-green-800' :
                       currentClause.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
+                      'bg-blue-100 text-blue-800'
                     }
                   >
-                    {currentClause.status}
+                    {currentClause.status === 'approved' ? 'Approved' :
+                     currentClause.status === 'rejected' ? 'Rejected' :
+                     currentClause.status === 'ai_generated' ? 'Pending Review' :
+                     'Pending Review'}
                   </Badge>
                 </div>
 

@@ -114,7 +114,17 @@ export default function ContractCreationFlow({
       console.log('Loaded session data:', session);
       
       setContractSession(session);
-      setCurrentStep(session.current_step || 1);
+      
+      // Use validated current_step from backend (which includes Step 3 completion validation)
+      const validatedStep = session.current_step || 1;
+      setCurrentStep(validatedStep);
+      
+      console.log(`📍 Setting current step to: ${validatedStep}`);
+      
+      // If we're resuming Step 3 and have resume data, log it
+      if (validatedStep === 3 && session.step3_resume_data) {
+        console.log('📋 Step 3 resume data available:', session.step3_resume_data);
+      }
       
       // Load step data from session if available
       loadStepDataFromSession(session);
