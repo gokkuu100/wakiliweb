@@ -1,4 +1,4 @@
-// API route for generating custom clauses
+// API route for approving optional clauses
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
@@ -15,7 +15,7 @@ export async function POST(
     const authHeader = request.headers.get('authorization');
     
     // Forward request to FastAPI backend
-    const response = await fetch(`${BACKEND_URL}/api/v1/contract-generation/sessions/${sessionId}/generate-custom-clauses`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/contract-generation/sessions/${sessionId}/approve-optional-clause`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28,14 +28,14 @@ export async function POST(
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: data.detail || 'Failed to generate custom clauses' },
+        { error: data.detail || 'Failed to approve optional clause' },
         { status: response.status }
       );
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in generate-custom-clauses API route:', error);
+    console.error('Error in approve-optional-clause API route:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
